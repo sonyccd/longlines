@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  deno:
+    name: Deno checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno fmt --check supabase/functions deno.json
+      - run: deno task lint
+      - run: deno task check
+      - run: deno task test
+
+  migrations:
+    name: Migrations on fresh Postgres
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # Starts only the Postgres container and applies every migration.
+      - run: supabase db start
+      - run: supabase db lint --fail-on error
+      # Exercises the RPCs, queue, cron jobs and grants against the applied schema.
+      - name: Smoke test
+        run: psql "$(supabase status -o env | grep '^DB_URL' | cut -d'"' -f2)" -v ON_ERROR_STOP=1 -X -f scripts/smoke-test.sql
