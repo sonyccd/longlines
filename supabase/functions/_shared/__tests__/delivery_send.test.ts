@@ -49,6 +49,7 @@ function delivery(id: number, destination: DeliveryDestination): PendingDelivery
       frequency_khz: 14062,
       band: "20m",
       mode: "cw",
+      mode_family: "cw",
       comment: "",
       pota_reference: "US-2763",
       pota_park_name: null,

@@ -38,6 +38,7 @@ Deno.test("pota.normalize maps a fixture spot to the common schema", async () =>
   assertEquals(s.frequency_khz, 10123.9);
   assertEquals(s.band, "30m");
   assertEquals(s.mode, "cw");
+  assertEquals(s.mode_family, "cw");
   assertEquals(s.comment, "RBN 22 dB 19 WPM via OK1HRA-#");
   assertEquals(s.pota_reference, "DE-0858");
   assertEquals(s.pota_park_name, "Via Sancti Martini National Historic Trail");
@@ -61,6 +62,20 @@ Deno.test("pota.normalize hashes spotTime, activator, reference, frequency, mode
       raw["comments"],
     ]),
   );
+});
+
+Deno.test("pota.normalize stores a null mode and family when upstream mode is blank", async () => {
+  const result = await pota.normalize({ ...spot(58161562), mode: "" }, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.mode, null);
+  assertEquals(result.spot.mode_family, null);
+});
+
+Deno.test("pota.normalize takes the mode from the comment when upstream mode is blank", async () => {
+  const result = await pota.normalize({ ...spot(58161562), mode: "", comments: "FT8 QRP" }, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.mode, "ft8");
+  assertEquals(result.spot.mode_family, "digital");
 });
 
 Deno.test("pota.normalize skips spots older than five minutes", async () => {

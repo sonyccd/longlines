@@ -51,7 +51,7 @@ spotted by both POTA and SOTAwatch is two rows. Downstream consumers decide what
 means for their purpose; collapsing early would throw away information they may need.
 
 Common fields are normalized (uppercase callsigns, kHz frequencies, lowercase modes, derived
-`band`) so consumers do not re-implement each source's quirks. Source-specific fields keep their
+`band` and `mode_family`) so consumers do not re-implement each source's quirks. Source-specific fields keep their
 own nullable columns rather than a generic JSON blob, and `raw_payload` keeps the original record
 for debugging and replay.
 
@@ -165,6 +165,14 @@ links in one transaction and refuses destinations the caller does not own.
 `subscription_destinations.destination_id` is `on delete restrict`, which is
 what makes a destination in use undeletable. Filters are arrays where empty
 means "any"; modes are stored lowercase and callsigns uppercase.
+
+A mode filter value matches either `raw_spots.mode` or `raw_spots.mode_family` (`cw`, `phone`,
+`digital`). The family is derived at ingest by `supabase/functions/_shared/modes.ts`, the only
+place that decides what a mode string means; SQL just compares strings. This exists because
+SOTAwatch's spot form offers a single `DATA` label for every digital mode, so a filter on `ft8`
+alone would never see a SOTA digital activation; `digital` catches both. When upstream sends a
+blank or generic digital mode and the comment names a specific one ("FT8 QRP"), the specific
+mode is stored, the same way the RBNHole spotter is read from the comment.
 
 ## Deleting an account
 

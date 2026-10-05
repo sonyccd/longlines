@@ -10,6 +10,7 @@ export interface DeliverySpot {
   frequency_khz: number;
   band: string | null;
   mode: string | null;
+  mode_family: string | null;
   comment: string;
   pota_reference: string | null;
   pota_park_name: string | null;

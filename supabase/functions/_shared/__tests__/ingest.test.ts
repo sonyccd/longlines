@@ -24,6 +24,7 @@ function spotFor(raw: JsonObject): NormalizedSpot {
     frequency_khz: 14074,
     band: "20m",
     mode: "ft8",
+    mode_family: "digital",
     comment: "",
     pota_reference: null,
     pota_park_name: null,
