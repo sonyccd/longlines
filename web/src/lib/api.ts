@@ -3,6 +3,7 @@
 
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "../supabase";
 import type { Database, Json } from "./database.types";
+import type { LatestStats, StatsPayload } from "../stats/types";
 
 type Tables = Database["public"]["Tables"];
 type Views = Database["public"]["Views"];
@@ -246,4 +247,25 @@ export async function previewSubscription(filter: SubscriptionFilter): Promise<P
   if (error) fail(error, "Couldn't load the preview.");
   const row = data[0];
   return { count: Number(row?.count ?? 0), spots: (row?.spots ?? []) as unknown as RecentSpot[] };
+}
+
+// ---- Stats ------------------------------------------------------------------
+
+/**
+ * Newest stats snapshot, or null before the first hourly refresh has run.
+ * One indexed read; the page caches the result for the session (see
+ * web/src/stats/useStats.ts).
+ */
+export async function loadLatestStats(): Promise<LatestStats | null> {
+  const { data, error } = await supabase
+    .from("stats_snapshots")
+    .select("payload, generated_at")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) fail(error, "Couldn't load stats.");
+  if (!data) return null;
+  // payload is jsonb in the generated types. Its shape is fixed by
+  // refresh_stats_snapshot() and pinned by supabase/tests/stats_snapshot.test.sql.
+  return { payload: data.payload as unknown as StatsPayload, generatedAt: data.generated_at };
 }
