@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createTheme, CssBaseline, LinearProgress, Snackbar, ThemeProvider, useMediaQuery } from "@mui/material";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AppProvider } from "./app/AppContext";
 import { useApp, WELCOME_KEY } from "./app/hooks";
 import { SignInPage } from "./auth/SignInPage";
@@ -25,6 +26,7 @@ export default function App() {
         <Router />
         <Toast />
       </AppProvider>
+      <SpeedInsights />
     </ThemeProvider>
   );
 }
