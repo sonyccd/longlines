@@ -1,0 +1,435 @@
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
+          Tables: {
+            "deliveries": {
+                  Row: {
+                    "attempts": number,"created_at": string,"destination_id": string,"id": number,"last_error": string | null,"sent_at": string | null,"spot_id": number,"status": string,"subscription_id": string
+                  }
+                  Insert: {
+                    "attempts"?: number,"created_at"?: string,"destination_id": string,"id"?: number,"last_error"?: string | null,"sent_at"?: string | null,"spot_id": number,"status"?: string,"subscription_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"created_at"?: string,"destination_id"?: string,"id"?: number,"last_error"?: string | null,"sent_at"?: string | null,"spot_id"?: number,"status"?: string,"subscription_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deliveries_destination_id_fkey"
+      columns: ["destination_id"]
+isOneToOne: false
+      referencedRelation: "destinations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deliveries_spot_id_fkey"
+      columns: ["spot_id"]
+isOneToOne: false
+      referencedRelation: "raw_spots"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deliveries_spot_id_fkey"
+      columns: ["spot_id"]
+isOneToOne: false
+      referencedRelation: "recent_spots"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deliveries_subscription_id_fkey"
+      columns: ["subscription_id"]
+isOneToOne: false
+      referencedRelation: "subscriptions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"destinations": {
+                  Row: {
+                    "consecutive_failures": number,"created_at": string,"health": string,"id": string,"last_error": string | null,"last_error_at": string | null,"last_success_at": string | null,"name": string,"signing_secret": string | null,"type": string,"url": string,"url_display": string,"user_id": string
+                  }
+                  Insert: {
+                    "consecutive_failures"?: number,"created_at"?: string,"health"?: string,"id"?: string,"last_error"?: string | null,"last_error_at"?: string | null,"last_success_at"?: string | null,"name": string,"signing_secret"?: string | null,"type": string,"url": string,"url_display": string,"user_id": string
+                  }
+                  Update: {
+                    "consecutive_failures"?: number,"created_at"?: string,"health"?: string,"id"?: string,"last_error"?: string | null,"last_error_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"signing_secret"?: string | null,"type"?: string,"url"?: string,"url_display"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"ingest_failures": {
+                  Row: {
+                    "error": string,"id": number,"occurred_at": string,"raw_payload": NonNullable<Json>,"source": string
+                  }
+                  Insert: {
+                    "error": string,"id"?: number,"occurred_at"?: string,"raw_payload": NonNullable<Json>,"source": string
+                  }
+                  Update: {
+                    "error"?: string,"id"?: number,"occurred_at"?: string,"raw_payload"?: NonNullable<Json>,"source"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"ingest_state": {
+                  Row: {
+                    "consecutive_failures": number,"last_epoch": string | null,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"source": string,"total_runs": number,"total_spots_ingested": number
+                  }
+                  Insert: {
+                    "consecutive_failures"?: number,"last_epoch"?: string | null,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"source": string,"total_runs"?: number,"total_spots_ingested"?: number
+                  }
+                  Update: {
+                    "consecutive_failures"?: number,"last_epoch"?: string | null,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"source"?: string,"total_runs"?: number,"total_spots_ingested"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"profiles": {
+                  Row: {
+                    "callsign": string,"created_at": string,"id": string,"name": string,"timezone": string,"utc_times": boolean
+                  }
+                  Insert: {
+                    "callsign": string,"created_at"?: string,"id": string,"name"?: string,"timezone"?: string,"utc_times"?: boolean
+                  }
+                  Update: {
+                    "callsign"?: string,"created_at"?: string,"id"?: string,"name"?: string,"timezone"?: string,"utc_times"?: boolean
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"raw_spots": {
+                  Row: {
+                    "band": string | null,"callsign": string,"comment": string,"content_hash": string,"frequency_khz": number,"id": number,"ingested_at": string,"mode": string | null,"pota_location": string | null,"pota_park_name": string | null,"pota_reference": string | null,"raw_payload": NonNullable<Json>,"sota_summit_ref": string | null,"source": string,"source_spot_id": string,"spot_time": string,"spotter": string | null
+                  }
+                  Insert: {
+                    "band"?: string | null,"callsign": string,"comment"?: string,"content_hash": string,"frequency_khz": number,"id"?: number,"ingested_at"?: string,"mode"?: string | null,"pota_location"?: string | null,"pota_park_name"?: string | null,"pota_reference"?: string | null,"raw_payload": NonNullable<Json>,"sota_summit_ref"?: string | null,"source": string,"source_spot_id": string,"spot_time": string,"spotter"?: string | null
+                  }
+                  Update: {
+                    "band"?: string | null,"callsign"?: string,"comment"?: string,"content_hash"?: string,"frequency_khz"?: number,"id"?: number,"ingested_at"?: string,"mode"?: string | null,"pota_location"?: string | null,"pota_park_name"?: string | null,"pota_reference"?: string | null,"raw_payload"?: NonNullable<Json>,"sota_summit_ref"?: string | null,"source"?: string,"source_spot_id"?: string,"spot_time"?: string,"spotter"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"sign_in_attempts": {
+                  Row: {
+                    "attempted_at": string,"id": number,"identifier": string
+                  }
+                  Insert: {
+                    "attempted_at"?: string,"id"?: number,"identifier": string
+                  }
+                  Update: {
+                    "attempted_at"?: string,"id"?: number,"identifier"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"subscription_destinations": {
+                  Row: {
+                    "destination_id": string,"subscription_id": string
+                  }
+                  Insert: {
+                    "destination_id": string,"subscription_id": string
+                  }
+                  Update: {
+                    "destination_id"?: string,"subscription_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "subscription_destinations_destination_id_fkey"
+      columns: ["destination_id"]
+isOneToOne: false
+      referencedRelation: "destinations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "subscription_destinations_subscription_id_fkey"
+      columns: ["subscription_id"]
+isOneToOne: false
+      referencedRelation: "subscriptions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"subscription_quiet": {
+                  Row: {
+                    "callsign": string,"last_sent_at": string,"subscription_id": string
+                  }
+                  Insert: {
+                    "callsign": string,"last_sent_at": string,"subscription_id": string
+                  }
+                  Update: {
+                    "callsign"?: string,"last_sent_at"?: string,"subscription_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "subscription_quiet_subscription_id_fkey"
+      columns: ["subscription_id"]
+isOneToOne: false
+      referencedRelation: "subscriptions"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"subscriptions": {
+                  Row: {
+                    "bands": (string)[],"callsigns": (string)[],"created_at": string,"enabled": boolean,"id": string,"modes": (string)[],"name": string,"quiet_minutes": number,"reference": string,"sources": (string)[],"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "bands"?: (string)[],"callsigns"?: (string)[],"created_at"?: string,"enabled"?: boolean,"id"?: string,"modes"?: (string)[],"name": string,"quiet_minutes"?: number,"reference"?: string,"sources"?: (string)[],"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "bands"?: (string)[],"callsigns"?: (string)[],"created_at"?: string,"enabled"?: boolean,"id"?: string,"modes"?: (string)[],"name"?: string,"quiet_minutes"?: number,"reference"?: string,"sources"?: (string)[],"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                }
+          }
+          Views: {
+            "ingest_health": {
+                  Row: {
+                    "consecutive_failures": number | null,"last_error": string | null,"last_run_at": string | null,"last_success_at": string | null,"seconds_since_last_success": number | null,"source": string | null,"spots_last_24h": number | null,"spots_last_hour": number | null,"total_spots_ingested": number | null
+                  }
+                  Insert: {
+                           "consecutive_failures"?: number | null,"last_error"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"seconds_since_last_success"?: never,"source"?: string | null,"spots_last_24h"?: never,"spots_last_hour"?: never,"total_spots_ingested"?: number | null
+                         }
+                        Update: {
+                           "consecutive_failures"?: number | null,"last_error"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"seconds_since_last_success"?: never,"source"?: string | null,"spots_last_24h"?: never,"spots_last_hour"?: never,"total_spots_ingested"?: number | null
+                         }
+                        Relationships: [
+                    
+                  ]
+                },"recent_spots": {
+                  Row: {
+                    "band": string | null,"callsign": string | null,"comment": string | null,"frequency_khz": number | null,"id": number | null,"mode": string | null,"pota_location": string | null,"pota_park_name": string | null,"pota_reference": string | null,"sota_summit_ref": string | null,"source": string | null,"spot_time": string | null,"spotter": string | null
+                  }
+                  Insert: {
+                           "band"?: string | null,"callsign"?: string | null,"comment"?: string | null,"frequency_khz"?: number | null,"id"?: number | null,"mode"?: string | null,"pota_location"?: string | null,"pota_park_name"?: string | null,"pota_reference"?: string | null,"sota_summit_ref"?: string | null,"source"?: string | null,"spot_time"?: string | null,"spotter"?: string | null
+                         }
+                        Update: {
+                           "band"?: string | null,"callsign"?: string | null,"comment"?: string | null,"frequency_khz"?: number | null,"id"?: number | null,"mode"?: string | null,"pota_location"?: string | null,"pota_park_name"?: string | null,"pota_reference"?: string | null,"sota_summit_ref"?: string | null,"source"?: string | null,"spot_time"?: string | null,"spotter"?: string | null
+                         }
+                        Relationships: [
+                    
+                  ]
+                }
+          }
+          Functions: {
+            "callsign_available":
+{ Args: { "p_callsign": string }; Returns: boolean
+                           },
+"claim_deliveries":
+{ Args: { "p_limit"?: number,"p_vt"?: number }; Returns: {
+              "attempts": number,"created_at": string,"delivery_id": number,"destination": Json,"msg_id": number,"spot": Json,"subscription_id": string
+            }[]
+                           },
+"create_destination":
+{ Args: { "p_name": string,"p_type": string,"p_url": string }; Returns: {
+              "created_at": string,"health": string,"id": string,"name": string,"signing_secret": string,"type": string,"url_display": string
+            }[]
+                           },
+"delay_deliveries":
+{ Args: { "p_delay_seconds": number,"p_msg_ids": (number)[] }; Returns: undefined
+                           },
+"delete_subscription":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"destination_url_display":
+{ Args: { "p_type": string,"p_url": string }; Returns: string
+                           },
+"email_for_identifier":
+{ Args: { "p_identifier": string }; Returns: string
+                           },
+"ingest_spots":
+{ Args: { "p_spots": Json }; Returns: {
+              "id": number,"source": string,"source_spot_id": string
+            }[]
+                           },
+"is_private_host":
+{ Args: { "p_host": string }; Returns: boolean
+                           },
+"jsonb_text_array":
+{ Args: { "p_case": string,"p_values": Json }; Returns: (string)[]
+                           },
+"mark_deliveries_dropped":
+{ Args: { "p_delivery_ids": (number)[],"p_msg_ids": (number)[] }; Returns: undefined
+                           },
+"mark_deliveries_failed":
+{ Args: { "p_delay_seconds": number,"p_delivery_ids": (number)[],"p_error": string,"p_msg_ids": (number)[] }; Returns: undefined
+                           },
+"mark_deliveries_sent":
+{ Args: { "p_delivery_ids": (number)[],"p_msg_ids": (number)[] }; Returns: undefined
+                           },
+"match_pending_spots":
+{ Args: { "batch_size"?: number }; Returns: number
+                           },
+"parse_https_url":
+{ Args: { "p_url": string }; Returns: (string)[]
+                           },
+"preview_subscription":
+{ Args: { "filter": Json }; Returns: {
+              "count": number,"spots": Json
+            }[]
+                           },
+"record_ingest_failure":
+{ Args: { "p_error": string,"p_source": string }; Returns: undefined
+                           },
+"record_ingest_success":
+{ Args: { "p_epoch"?: string,"p_inserted": number,"p_source": string }; Returns: undefined
+                           },
+"record_sign_in_attempt":
+{ Args: { "p_identifier": string }; Returns: number
+                           },
+"rotate_signing_secret":
+{ Args: { "p_destination_id": string }; Returns: string
+                           },
+"run_housekeeping":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"save_subscription":
+{ Args: { "payload": Json }; Returns: string
+                           },
+"spot_matches":
+{ Args: { "spot": Database["public"]['Tables']["raw_spots"]['Row'],"sub": Database["public"]['Tables']["subscriptions"]['Row'] }; Returns: boolean
+                           },
+"validate_destination_url":
+{ Args: { "p_type": string,"p_url": string }; Returns: undefined
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        }
+}
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
+          Enums: {
+            
+          }
+        }
+} as const

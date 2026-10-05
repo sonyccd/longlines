@@ -214,3 +214,34 @@ project.
 
 A daily job (`housekeeping`, 03:00 UTC) deletes deliveries and archived queue
 messages older than 7 days and sign-in attempts older than a day.
+
+## Web app on Vercel
+
+Create a Vercel project from the GitHub repo with these settings:
+
+- Root directory: `web`
+- Framework preset: Vite (build `npm run build`, output `dist`)
+- Environment variables (Production and Preview): `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY` from the Supabase project's API settings. Only the
+  anon (publishable) key; never the service-role key.
+- Domain: `app.longlines.io`
+
+`web/vercel.json` rewrites every path to `index.html` so client-side routes
+load directly. Nothing else is host-specific; `npm run build` produces a plain
+static site in `web/dist`.
+
+After the first deploy, make sure Supabase Auth → URL configuration lists
+`https://app.longlines.io` as the Site URL and includes
+`https://app.longlines.io/set-password` in the redirect URLs, or confirmation
+and reset links will not land in the app.
+
+## Regenerating database types
+
+Whenever a migration changes a table, view or RPC the app uses:
+
+```sh
+supabase start   # or db start
+supabase gen types typescript --local > web/src/lib/database.types.ts
+```
+
+The generated file is committed; CI type-checks the app against it.

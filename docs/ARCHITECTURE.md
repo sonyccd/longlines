@@ -166,6 +166,14 @@ links in one transaction and refuses destinations the caller does not own.
 what makes a destination in use undeletable. Filters are arrays where empty
 means "any"; modes are stored lowercase and callsigns uppercase.
 
+## Deleting an account
+
+`delete-account` removes the `auth.users` row and everything cascades. Because
+`subscription_destinations.destination_id` is `on delete restrict`, a
+`before delete` trigger on `auth.users` first deletes the user's subscriptions
+so the restrict rule, which exists to protect destinations still in use, does
+not block the cascade.
+
 ## What clients can read
 
 - `recent_spots`: the last 24 hours of `raw_spots` without `raw_payload`
