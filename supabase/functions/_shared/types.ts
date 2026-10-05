@@ -55,6 +55,9 @@ export interface IngestSummary {
   inserted: number;
   skipped: Record<SkipReason, number>;
   failed: number;
+  /** Deliveries created by the matcher, or null when it did not run. */
+  matched: number | null;
+  match_error?: string;
   duration_ms: number;
 }
 
@@ -79,4 +82,6 @@ export interface IngestDb {
   recordSpotFailures(failures: SpotFailure[]): Promise<void>;
   recordSuccess(source: Source, inserted: number, epoch: string | null): Promise<void>;
   recordFailure(source: Source, error: string): Promise<void>;
+  /** Run the matcher over queued spot_events; returns deliveries created. */
+  matchPendingSpots(): Promise<number>;
 }

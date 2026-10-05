@@ -166,6 +166,14 @@ links in one transaction and refuses destinations the caller does not own.
 what makes a destination in use undeletable. Filters are arrays where empty
 means "any"; modes are stored lowercase and callsigns uppercase.
 
+## Deleting an account
+
+`delete-account` removes the `auth.users` row and everything cascades. Because
+`subscription_destinations.destination_id` is `on delete restrict`, a
+`before delete` trigger on `auth.users` first deletes the user's subscriptions
+so the restrict rule, which exists to protect destinations still in use, does
+not block the cascade.
+
 ## What clients can read
 
 - `recent_spots`: the last 24 hours of `raw_spots` without `raw_payload`
@@ -175,3 +183,56 @@ means "any"; modes are stored lowercase and callsigns uppercase.
   links, through RLS.
 
 `deliveries`, `subscription_quiet` and `sign_in_attempts` are service-role only.
+
+# Phase 2: matching and delivery
+
+```mermaid
+flowchart LR
+  SE[[pgmq spot_events]] --> M[match_pending_spots]
+  SUBS[(subscriptions)] --> M
+  M --> DEL[(deliveries)]
+  M --> DQ[[pgmq deliveries_queue]]
+  M -. pg_net .-> W[deliver fn]
+  CRON[pg_cron every minute] --> M
+  CRON --> W
+  DQ --> W
+  W --> DISC[Discord webhook]
+  W --> HOOK[Webhook endpoint]
+  W --> DEL
+  W --> DEST[(destinations health)]
+```
+
+## Matcher
+
+`match_pending_spots()` is a Postgres function because matching is a join:
+one batch of `spot_events` against every enabled subscription through
+`spot_matches(subscription, spot)`, the single predicate the preview uses too.
+In one transaction it reads up to 500 events (60 s visibility), applies each
+subscription's quiet window (`subscription_quiet` remembers the last send per
+callsign; within a batch only the earliest spot per callsign is eligible),
+inserts one `deliveries` row per (destination, spot) with `on conflict do
+nothing` so two subscriptions sharing a destination deliver once, queues the
+new delivery ids, archives the events, and pokes the `deliver` function over
+pg_net when it created anything. It runs after every successful ingest and on
+a one-minute cron as a safety net.
+
+## Delivery worker
+
+`deliver` claims up to 200 messages through `claim_deliveries()` (which joins
+in the spot and the destination, secrets included, and archives orphans),
+drops anything older than 24 hours, groups by destination, skips paused
+destinations, and sends: Discord as embeds, ten per message and at most 30
+messages per webhook per run, honoring `429 retry_after`; webhooks as signed
+JSON, fifty spots per request, 10 s timeout. Every outcome goes back through an
+RPC so the delivery rows, the queue messages and the destination's health
+change together: `mark_deliveries_sent`, `mark_deliveries_failed` (backoff via
+`pgmq.set_vt`, five in a row marks the destination failing), `delay_deliveries`
+(rate limited, not a failure) and `mark_deliveries_dropped`.
+
+Outbound URL safety is checked twice: in SQL when the destination is created
+and in the worker before each request, which also resolves the hostname and
+refuses private addresses so a DNS change after creation cannot turn a
+webhook into an internal request.
+
+`send-test` reuses the same formatting and sending code for one labeled
+sample spot.

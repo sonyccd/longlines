@@ -160,3 +160,88 @@ database (`supabase db start` or `supabase start`, then `supabase test db`). CI
 runs them on every PR. `supabase/tests/helpers/users.psql` seeds two users and
 an `as_user(uuid)` helper that switches to the `authenticated` role with that
 user's JWT claims, which is how the RLS assertions work.
+
+## Delivery
+
+Deploy the two delivery functions after `supabase db push`:
+
+```sh
+supabase functions deploy deliver
+supabase functions deploy send-test
+```
+
+`deliver` is called by cron every minute and by the matcher; both use the Vault
+secrets from Phase 1, so nothing new to configure.
+
+### Is anything flowing?
+
+```sql
+select status, count(*) from deliveries where created_at > now() - interval '1 hour' group by 1;
+select * from pgmq.metrics('deliveries_queue');
+select name, type, health, consecutive_failures, last_error, last_error_at, last_success_at
+from destinations order by health desc, last_error_at desc nulls last;
+select jobname, status, return_message, start_time
+from cron.job_run_details d join cron.job j using (jobid)
+where jobname in ('match-pending-spots', 'deliver') order by start_time desc limit 10;
+```
+
+### A destination keeps failing
+
+`destinations.last_error` holds the upstream status or the safety-check
+message. Retries follow 30 s, 1 m, 2 m, 5 m, 15 m, then every 30 m, for 24
+hours; after that the delivery is `dropped`. To stop retrying without deleting
+the destination:
+
+```sql
+update destinations set health = 'paused' where id = '<id>';
+-- later
+update destinations set health = 'ok', consecutive_failures = 0 where id = '<id>';
+```
+
+Paused destinations are skipped by the worker; their messages wait in the
+queue and are dropped at 24 hours like any other.
+
+### Local development
+
+The worker refuses plain-http and private addresses. To exercise delivery
+against a receiver on your own machine, set
+`LONGLINES_ALLOW_INSECURE_DESTINATIONS=1` in `supabase/functions/.env` (read by
+`supabase functions serve`) and insert the destination row directly in SQL;
+`create_destination()` will not accept such a URL. Never set this on the hosted
+project.
+
+### Housekeeping
+
+A daily job (`housekeeping`, 03:00 UTC) deletes deliveries and archived queue
+messages older than 7 days and sign-in attempts older than a day.
+
+## Web app on Vercel
+
+Create a Vercel project from the GitHub repo with these settings:
+
+- Root directory: `web`
+- Framework preset: Vite (build `npm run build`, output `dist`)
+- Environment variables (Production and Preview): `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY` from the Supabase project's API settings. Only the
+  anon (publishable) key; never the service-role key.
+- Domain: `app.longlines.io`
+
+`web/vercel.json` rewrites every path to `index.html` so client-side routes
+load directly. Nothing else is host-specific; `npm run build` produces a plain
+static site in `web/dist`.
+
+After the first deploy, make sure Supabase Auth → URL configuration lists
+`https://app.longlines.io` as the Site URL and includes
+`https://app.longlines.io/set-password` in the redirect URLs, or confirmation
+and reset links will not land in the app.
+
+## Regenerating database types
+
+Whenever a migration changes a table, view or RPC the app uses:
+
+```sh
+supabase start   # or db start
+supabase gen types typescript --local > web/src/lib/database.types.ts
+```
+
+The generated file is committed; CI type-checks the app against it.

@@ -30,6 +30,12 @@ docker exec -i supabase_db_longlines psql -U postgres   # psql is not installed;
 psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/smoke-test.sql   # schema smoke test, also run by CI
 supabase test db                       # pgTAP suites in supabase/tests/*.test.sql (local db must be running)
 
+cd web && npm run dev                  # web app on http://localhost:5173 (needs web/.env.local)
+cd web && npm test                     # Vitest for web/src/lib
+cd web && npm run build                # tsc -b + vite build; zero TS errors required
+cd web && npm run lint                 # oxlint
+supabase gen types typescript --local > web/src/lib/database.types.ts   # after schema changes
+
 supabase db push                       # hosted: apply migrations
 supabase functions deploy ingest-pota  # hosted: deploy one function
 ```
@@ -78,6 +84,33 @@ be edited; add a new migration instead (see `20261005000009_*`).
   to `service_role`.
 - pgTAP tests include `helpers/users.psql` (not `.sql`, so the runner skips it) and use
   `pg_temp.as_user(uuid)` to assert RLS from a user's point of view.
+
+## Delivery rules
+
+- Matching lives in SQL (`spot_matches`, `match_pending_spots`); never re-implement the predicate in
+  TypeScript. The preview RPC and the matcher must stay on the same function.
+- The worker (`supabase/functions/deliver`) only talks to the database through the
+  `claim_deliveries` / `mark_deliveries_*` / `delay_deliveries` RPCs so delivery rows, queue
+  messages and destination health change atomically.
+- Formatting, signing and URL safety are pure modules under `_shared/delivery/` with tests;
+  `send.ts` is the only place that calls `fetch` for destinations. `allowInsecure` exists for tests
+  and local development only.
+- Rate limits are not failures: a 429 or the per-run cap delays messages via `delay_deliveries`
+  without touching `consecutive_failures`.
+
+## Web app rules
+
+- `web/src/lib/api.ts` is the only module that touches supabase-js; pages call its typed
+  functions. Edge Functions are called with plain `fetch` there so non-2xx bodies surface as
+  messages.
+- Stock MUI theme, `palette.mode` from `prefers-color-scheme` only. MUI 9: `Grid` uses `size`,
+  `Stack` takes flex alignment through `sx`, there is no `fontWeight` prop (use a variant such as
+  `subtitle2`), `slotProps` replaces `InputProps`/`secondaryTypographyProps`.
+- `sx` is for layout only (spacing, sizing, display, flex/grid placement, overflow, position).
+  Colors, fonts, borders and shadows come from component props and variants.
+- Copy comes from `docs/ui-mock.html`; keep it word for word.
+- Matching previews come from the `preview_subscription` RPC, never from TypeScript.
+- Database types in `web/src/lib/database.types.ts` are generated; regenerate after migrations.
 
 ## Conventions
 

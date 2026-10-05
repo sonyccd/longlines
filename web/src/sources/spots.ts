@@ -1,0 +1,5 @@
+import type { RecentSpot } from "../lib/api";
+
+export function spotReference(s: RecentSpot): string {
+  return s.pota_reference ?? s.sota_summit_ref ?? "";
+}

@@ -21,6 +21,7 @@ function errorMessage(error: unknown): string {
  *   3. normalize every spot, collecting unprocessable ones instead of failing the run
  *   4. insert the batch and enqueue the newly inserted rows (ingest_spots RPC)
  *   5. write the dead letters and the run outcome to ingest_state
+ *   6. run the matcher when anything was inserted
  *
  * Throws (after recording the failure) when the run as a whole cannot proceed.
  */
@@ -37,6 +38,7 @@ export async function runIngest(
     inserted: 0,
     skipped: { too_old: 0, test_comment: 0, not_normal: 0 },
     failed: 0,
+    matched: null,
     duration_ms: 0,
   };
 
@@ -80,6 +82,18 @@ export async function runIngest(
     }
 
     await db.recordSuccess(adapter.source, summary.inserted, epoch);
+
+    // New spots are queued; run the matcher now rather than waiting for cron.
+    // A matcher problem is reported but does not turn a good ingest into a failure.
+    if (summary.inserted > 0) {
+      try {
+        summary.matched = await db.matchPendingSpots();
+      } catch (error) {
+        summary.match_error = errorMessage(error);
+        console.error(`ingest-${adapter.source}: matcher failed: ${summary.match_error}`);
+      }
+    }
+
     summary.duration_ms = Math.round(performance.now() - started);
     return summary;
   } catch (error) {
