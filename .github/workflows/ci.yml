@@ -30,6 +30,7 @@ jobs:
       # Starts only the Postgres container and applies every migration.
       - run: supabase db start
       - run: supabase db lint --fail-on error
+      - run: supabase test db
       # Exercises the RPCs, queue, cron jobs and grants against the applied schema.
       - name: Smoke test
         run: psql "$(supabase status -o env | grep '^DB_URL' | cut -d'"' -f2)" -v ON_ERROR_STOP=1 -X -f scripts/smoke-test.sql

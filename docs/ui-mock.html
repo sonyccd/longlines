@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Long Lines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+<style>
+  :root { --bg: #ffffff; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #121212; } }
+  :root[data-theme="dark"] { --bg: #121212; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; min-height: 100%; background: var(--bg); font-family: "Roboto", "Helvetica", "Arial", sans-serif; }
+  img { max-width: 100%; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mui/material@5.16.7/umd/material-ui.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+const {
+  createTheme, ThemeProvider, CssBaseline, useMediaQuery,
+  AppBar, Toolbar, Typography, Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
+  ListItem, IconButton, Container, Grid, Card, CardContent, CardActions, Chip, Button, Stack,
+  Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper, Tabs, Tab,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Autocomplete, Switch,
+  FormControlLabel, Checkbox, FormGroup, FormLabel, Select, MenuItem, InputLabel, FormControl,
+  Snackbar, Alert, Divider, Icon, Tooltip, Radio, RadioGroup, Badge, LinearProgress,
+  Avatar, Menu, useTheme
+} = MaterialUI;
+
+// ---------- Icons: MUI <Icon> with the Material Icons font ----------
+const mi = (name) => (props) => <Icon {...props}>{name}</Icon>;
+const SourcesIcon = mi("sensors");
+const DestIcon = mi("send");
+const SubIcon = mi("filter_list");
+const AddIcon = mi("add");
+const DeleteIcon = mi("delete");
+const EditIcon = mi("edit");
+const MenuIcon = mi("menu");
+
+// Page title: swaps Typography variants by breakpoint instead of overriding sizes.
+function PageTitle({ children }) {
+  const mobile = useMediaQuery((t) => t.breakpoints.down("sm"));
+  return <Typography variant={mobile ? "h5" : "h4"} component="h1" gutterBottom>{children}</Typography>;
+}
+
+// ---------- Mock data ----------
+const SOURCES = [
+  { id: "pota", name: "POTA", full: "Parks on the Air", status: "live", interval: "every 60s", perHour: 412, lastSeen: "12s ago", desc: "Activator spots from api.pota.app" },
+  { id: "sotawatch", name: "SOTAwatch", full: "Summits on the Air", status: "live", interval: "every 30s", perHour: 38, lastSeen: "21s ago", desc: "Summit activation spots from SOTAwatch" },
+  { id: "rbn", name: "RBN", full: "Reverse Beacon Network", status: "planned", interval: "streaming", desc: "CW and digital skimmer spots" },
+  { id: "dxcluster", name: "DX Cluster", full: "DXSpider network", status: "planned", interval: "streaming", desc: "Human-entered DX spots" },
+  { id: "pskreporter", name: "PSK Reporter", full: "PSK Reporter", status: "planned", interval: "streaming", desc: "FT8, FT4 and other digital mode reports" },
+  { id: "wwff", name: "WWFF", full: "World Wide Flora & Fauna", status: "planned", interval: "streaming", desc: "WWFF reference activations" },
+];
+
+const SPOTS = [
+  { t: "14:32:08", call: "KK4PWJ", freq: 14062.0, band: "20m", mode: "cw", ref: "US-2763", loc: "US-NC", src: "pota", spotter: "W4ABC" },
+  { t: "14:31:55", call: "N4DXX", freq: 7185.0, band: "40m", mode: "ssb", ref: "US-0817", loc: "US-NC", src: "pota", spotter: "K3XYZ" },
+  { t: "14:31:40", call: "W4/G4OBK", freq: 14285.0, band: "20m", mode: "ssb", ref: "W4C/CM-001", src: "sotawatch", spotter: "AC4ZO" },
+  { t: "14:31:12", call: "VE3KTB", freq: 10118.5, band: "30m", mode: "cw", ref: "CA-0124", loc: "CA-ON", src: "pota", spotter: "N1MM" },
+  { t: "14:30:47", call: "K0NY", freq: 14074.0, band: "20m", mode: "ft8", ref: "US-4581", loc: "US-CO", src: "pota", spotter: "KD0QQ" },
+  { t: "14:30:21", call: "W7JZ", freq: 7032.0, band: "40m", mode: "cw", ref: "W7A/MN-010", src: "sotawatch", spotter: "RBNHOLE" },
+  { t: "14:29:58", call: "AB4RD", freq: 21025.0, band: "15m", mode: "cw", ref: "US-6853", loc: "US-NC,US-VA", src: "pota", spotter: "W4KNX" },
+  { t: "14:29:33", call: "G0VOF", freq: 18085.0, band: "17m", mode: "cw", ref: "G/LD-003", src: "sotawatch", spotter: "M0XYZ" },
+  { t: "14:28:50", call: "N8FF", freq: 28400.0, band: "10m", mode: "ssb", ref: "US-1937", loc: "US-OH", src: "pota", spotter: "W8QR" },
+  { t: "14:28:14", call: "KN4QHW", freq: 146520.0, band: "2m", mode: "fm", ref: "W4C/EM-012", src: "sotawatch", spotter: "KK4PWJ" },
+];
+
+// Pad the feed with generated spots so long lists can be seen scrolling.
+(function padSpots() {
+  const calls = ["W1AW","K4SWL","N0RDS","KD9NKF","WB4SZK","VA3RTG","K8MRD","N4CPA","AA4MS","KO4YUF","G4ABC","DL1XYZ","JA1QRP","VK2SOT","EA7HAM"];
+  const combos = [[14062,"20m","cw"],[14285,"20m","ssb"],[7035,"40m","cw"],[7200,"40m","ssb"],[10114,"30m","cw"],[18090,"17m","cw"],[21300,"15m","ssb"],[14074,"20m","ft8"],[28074,"10m","ft8"],[3560,"80m","cw"]];
+  const potaRefs = [["US-2763","US-NC"],["US-1234","US-VA"],["US-0551","US-GA"],["CA-0412","CA-ON"],["US-3311","US-TN"],["DE-0110","DE-BY"]];
+  const sotaRefs = ["W4C/CM-002","W4T/SU-010","W7A/MN-015","G/SP-004","VK2/HU-001","JA/TK-007"];
+  let sec = 14 * 3600 + 28 * 60;
+  for (let i = 0; i < 32; i++) {
+    sec -= 23 + (i * 7) % 41;
+    const hh = String(Math.floor(sec / 3600)).padStart(2, "0"), mm = String(Math.floor(sec / 60) % 60).padStart(2, "0"), ss = String(sec % 60).padStart(2, "0");
+    const [freq, band, mode] = combos[i % combos.length];
+    const isSota = i % 4 === 1;
+    const pr = potaRefs[i % potaRefs.length];
+    SPOTS.push({ t: `${hh}:${mm}:${ss}`, call: calls[i % calls.length], freq: freq + (i % 5) * 0.5, band, mode,
+      ref: isSota ? sotaRefs[i % sotaRefs.length] : pr[0], loc: isSota ? undefined : pr[1],
+      src: isSota ? "sotawatch" : "pota", spotter: calls[(i + 5) % calls.length] });
+  }
+})();
+
+const DEST_TYPES = [
+  { id: "discord", label: "Discord channel", help: "Post matching spots into a channel using a Discord webhook URL." },
+  { id: "webhook", label: "Webhook", help: "We POST each matching spot as JSON to your URL, signed with a shared secret." },
+];
+
+const BANDS = ["160m","80m","60m","40m","30m","20m","17m","15m","12m","10m","6m","2m","70cm"];
+const MODES = ["cw","ssb","fm","am","ft8","ft4","rtty","psk"];
+
+const initialDests = [
+  { id: "d1", type: "discord", name: "RARS #pota-spots", target: "https://discord.com/api/webhooks/1182…/xY9", health: "ok" },
+  { id: "d2", type: "webhook", name: "Shack dashboard", target: "https://shack.local:8443/spots", health: "failing" },
+];
+
+const initialSubs = [
+  { id: "s1", name: "NC parks, any band", enabled: true, sources: ["pota"], bands: [], modes: [], callsigns: [], reference: "US-NC", destinations: ["d1"], quiet: 10 },
+  { id: "s2", name: "W4C summits on CW", enabled: true, sources: ["sotawatch"], bands: [], modes: ["cw"], callsigns: [], reference: "W4C/", destinations: ["d2"], quiet: 0 },
+];
+
+// ---------- Matching ----------
+function matches(sub, s) {
+  if (sub.sources.length && !sub.sources.includes(s.src)) return false;
+  if (sub.bands.length && !sub.bands.includes(s.band)) return false;
+  if (sub.modes.length && !sub.modes.includes(s.mode)) return false;
+  if (sub.callsigns.length && !sub.callsigns.map(c => c.toUpperCase()).includes(s.call)) return false;
+  if (sub.reference) {
+    const r = sub.reference.toUpperCase();
+    const hay = [s.ref, s.loc].filter(Boolean).join(",").toUpperCase();
+    if (!hay.includes(r)) return false;
+  }
+  return true;
+}
+
+const srcName = (id) => SOURCES.find(s => s.id === id)?.name ?? id;
+const typeLabel = (id) => DEST_TYPES.find(t => t.id === id)?.label ?? id;
+
+// ---------- Spots table ----------
+function SpotsTable({ spots, dense, maxHeight = 480 }) {
+  const theme = useTheme();
+  const mobile = useMediaQuery(theme.breakpoints.down("sm"));
+  if (!spots.length) return <Typography color="text.secondary" sx={{ p: 2 }}>No spots match these filters yet.</Typography>;
+  if (mobile) {
+    return (
+      <List dense disablePadding sx={{ maxHeight, overflowY: "auto" }}>
+        {spots.map((s, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <Divider component="li" />}
+            <ListItem>
+              <ListItemText
+                primary={<Stack direction="row" justifyContent="space-between" spacing={1}>
+                  <Typography component="span" variant="body2" fontWeight="bold">{s.call}</Typography><Typography component="span" variant="body2">{s.freq.toFixed(1)} kHz {s.mode.toUpperCase()}</Typography></Stack>}
+                secondary={<Stack direction="row" justifyContent="space-between" spacing={1} component="span">
+                  <Typography component="span" variant="caption">{s.ref} · {srcName(s.src)}</Typography><Typography component="span" variant="caption">{s.t}</Typography></Stack>}
+                secondaryTypographyProps={{ component: "div" }}
+              />
+            </ListItem>
+          </React.Fragment>
+        ))}
+      </List>
+    );
+  }
+  return (
+    <TableContainer sx={{ maxHeight, overflow: "auto" }}>
+      <Table stickyHeader size={dense ? "small" : "medium"}>
+        <TableHead>
+          <TableRow>
+            <TableCell>Time (UTC)</TableCell><TableCell>Callsign</TableCell><TableCell align="right">kHz</TableCell>
+            <TableCell>Band</TableCell><TableCell>Mode</TableCell><TableCell>Reference</TableCell><TableCell>Source</TableCell><TableCell>Spotter</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {spots.map((s, i) => (
+            <TableRow key={i} hover>
+              <TableCell>{s.t}</TableCell>
+              <TableCell><Typography variant="body2" fontWeight="bold">{s.call}</Typography></TableCell>
+              <TableCell align="right">{s.freq.toFixed(1)}</TableCell>
+              <TableCell>{s.band}</TableCell>
+              <TableCell>{s.mode.toUpperCase()}</TableCell>
+              <TableCell>{s.ref}</TableCell>
+              <TableCell>{srcName(s.src)}</TableCell>
+              <TableCell>{s.spotter}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+// ---------- Sources page ----------
+function SourcesPage() {
+  const [tab, setTab] = useState("all");
+  const shown = tab === "all" ? SPOTS : SPOTS.filter(s => s.src === tab);
+  return (
+    <Stack spacing={3}>
+      <Box>
+        <PageTitle>Sources</PageTitle>
+        <Typography color="text.secondary">Long Lines connects to each network once and shares that feed with every subscription, so upstream servers only ever see a single client.</Typography>
+      </Box>
+      <Grid container spacing={2}>
+        {SOURCES.map(s => (
+          <Grid item xs={12} sm={6} md={4} key={s.id}>
+            <Card variant="outlined" sx={{ height: "100%" }}>
+              <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="h6">{s.name}</Typography>
+                  {s.status === "live"
+                    ? <Chip size="small" color="success" label="Connected" />
+                    : <Chip size="small" variant="outlined" label="Not yet available" />}
+                </Stack>
+                <Typography variant="body2" color="text.secondary" gutterBottom>{s.full}. {s.desc}.</Typography>
+                {s.status === "live" ? (
+                  <Stack direction="row" spacing={3} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
+                    <Box><Typography variant="h5">{s.perHour}</Typography><Typography variant="caption" color="text.secondary">spots in the last hour</Typography></Box>
+                    <Box><Typography variant="h5">{s.lastSeen}</Typography><Typography variant="caption" color="text.secondary">last fetch, {s.interval}</Typography></Box>
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Needs a persistent connection worker. Planned for phase 2.</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+      <Paper variant="outlined">
+        <Box sx={{ px: 2, pt: 2 }}>
+          <Typography variant="h6">Recent spots</Typography>
+          <Typography variant="body2" color="text.secondary">Everything ingested, before any subscription filters.</Typography>
+        </Box>
+        <Tabs value={tab} onChange={(e, v) => setTab(v)} variant="scrollable" sx={{ px: 1 }}>
+          <Tab value="all" label="All" />
+          {SOURCES.filter(s => s.status === "live").map(s => <Tab key={s.id} value={s.id} label={s.name} />)}
+        </Tabs>
+        <Divider />
+        <SpotsTable spots={shown} dense />
+      </Paper>
+    </Stack>
+  );
+}
+
+// ---------- Destinations page ----------
+function DestinationDialog({ open, onClose, onSave }) {
+  const [type, setType] = useState("discord");
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const reset = () => { setType("discord"); setName(""); setTarget(""); };
+  const save = () => {
+    onSave({ id: "d" + Date.now(), type, name: name || typeLabel(type), target, health: "ok" });
+    reset();
+  };
+  const t = DEST_TYPES.find(d => d.id === type);
+  return (
+    <Dialog open={open} onClose={() => { reset(); onClose(); }} fullWidth maxWidth="sm">
+      <DialogTitle>Add destination</DialogTitle>
+      <DialogContent dividers>
+        <FormControl sx={{ mb: 2 }}>
+          <FormLabel>Where should spots go?</FormLabel>
+          <RadioGroup value={type} onChange={(e) => setType(e.target.value)}>
+            {DEST_TYPES.map(d => <FormControlLabel key={d.id} value={d.id} control={<Radio />} label={d.label} />)}
+          </RadioGroup>
+        </FormControl>
+        <Alert severity="info" sx={{ mb: 2 }}>{t.help}</Alert>
+        <Stack spacing={2}>
+          <TextField label="Name" placeholder="e.g. Club Discord" value={name} onChange={e => setName(e.target.value)} fullWidth />
+          {type === "discord" && <TextField label="Discord webhook URL" placeholder="https://discord.com/api/webhooks/…" value={target} onChange={e => setTarget(e.target.value)} fullWidth helperText="Channel settings → Integrations → Webhooks → Copy URL" />}
+          {type === "webhook" && <>
+            <TextField label="Endpoint URL" placeholder="https://example.com/spots" value={target} onChange={e => setTarget(e.target.value)} fullWidth />
+            <TextField label="Signing secret" value="whsec_3a91…" InputProps={{ readOnly: true }} helperText="Verify the X-LongLines-Signature header with this secret." fullWidth />
+          </>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => { reset(); onClose(); }}>Cancel</Button>
+        <Button variant="contained" onClick={save} disabled={!target}>Add destination</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function DestinationsPage({ dests, setDests, subs, notify }) {
+  const [open, setOpen] = useState(false);
+  const usedBy = (id) => subs.filter(s => s.destinations.includes(id)).length;
+  return (
+    <Stack spacing={3}>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-end" }} spacing={2}>
+        <Box>
+          <PageTitle>Destinations</PageTitle>
+          <Typography color="text.secondary">Places Long Lines can deliver spots. A destination does nothing until a subscription sends spots to it.</Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>Add destination</Button>
+      </Stack>
+      {dests.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: "center" }}>
+          <Typography gutterBottom>No destinations yet.</Typography>
+          <Button onClick={() => setOpen(true)}>Add your first destination</Button>
+        </Paper>
+      ) : (
+        <Paper variant="outlined">
+          <List disablePadding>
+            {dests.map((d, i) => (
+              <React.Fragment key={d.id}>
+                {i > 0 && <Divider component="li" />}
+                <ListItem sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "stretch", sm: "center" }, gap: 1 }}>
+                  <ListItemText sx={{ minWidth: 0 }}
+                    primary={<Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap"><Typography component="span">{d.name}</Typography>
+                      {d.health === "failing" ? <Chip size="small" color="error" label="Failing" /> : <Chip size="small" color="success" variant="outlined" label="Healthy" />}</Stack>}
+                    secondary={<>
+                      <Box component="span" sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{typeLabel(d.type)} · {d.target}</Box>
+                      <Box component="span" sx={{ display: "block" }}>Used by {usedBy(d.id)} subscription{usedBy(d.id) === 1 ? "" : "s"}</Box>
+                    </>}
+                  />
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} sx={{ flexShrink: 0 }}>
+                    <Button size="small" variant="outlined" onClick={() => notify(`Test spot sent to ${d.name}`)}>Send test</Button>
+                    <Tooltip title={usedBy(d.id) ? "Remove it from its subscriptions first" : "Delete"}>
+                      <Box component="span"><IconButton aria-label={`Delete ${d.name}`} disabled={usedBy(d.id) > 0} onClick={() => { setDests(dests.filter(x => x.id !== d.id)); notify(`Deleted ${d.name}`); }}><DeleteIcon /></IconButton></Box>
+                    </Tooltip>
+                  </Stack>
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+        </Paper>
+      )}
+      {dests.some(d => d.health === "failing") && (
+        <Alert severity="warning">Shack dashboard has returned errors for the last 14 deliveries. Spots are queued and will retry for 24 hours.</Alert>
+      )}
+      <DestinationDialog open={open} onClose={() => setOpen(false)} onSave={(d) => { setDests([...dests, d]); setOpen(false); notify(`Added ${d.name}`); }} />
+    </Stack>
+  );
+}
+
+// ---------- Subscriptions page ----------
+const blankSub = () => ({ id: null, name: "", enabled: true, sources: [], bands: [], modes: [], callsigns: [], reference: "", destinations: [], quiet: 10 });
+
+function SubscriptionDialog({ open, initial, dests, onClose, onSave, fullScreen }) {
+  const [sub, setSub] = useState(initial);
+  React.useEffect(() => { setSub(initial); }, [initial]);
+  const set = (k, v) => setSub(s => ({ ...s, [k]: v }));
+  const preview = useMemo(() => SPOTS.filter(s => matches(sub, s)), [sub]);
+  const liveSources = SOURCES.filter(s => s.status === "live");
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
+      <DialogTitle>{initial.id ? "Edit subscription" : "New subscription"}</DialogTitle>
+      <DialogContent dividers>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Stack spacing={2.5}>
+              <TextField label="Name" value={sub.name} onChange={e => set("name", e.target.value)} placeholder="e.g. NC parks on 20m" fullWidth required />
+              <FormControl component="fieldset">
+                <FormLabel>Sources</FormLabel>
+                <FormGroup row>
+                  {liveSources.map(s => (
+                    <FormControlLabel key={s.id} label={s.name} control={
+                      <Checkbox checked={sub.sources.includes(s.id)} onChange={(e) => set("sources", e.target.checked ? [...sub.sources, s.id] : sub.sources.filter(x => x !== s.id))} />
+                    } />
+                  ))}
+                </FormGroup>
+                <Typography variant="caption" color="text.secondary">Leave all unchecked to match every source.</Typography>
+              </FormControl>
+              <Autocomplete multiple options={BANDS} value={sub.bands} onChange={(e, v) => set("bands", v)}
+                renderInput={(p) => <TextField {...p} label="Bands" placeholder="Any band" />} />
+              <Autocomplete multiple options={MODES} value={sub.modes} onChange={(e, v) => set("modes", v)} getOptionLabel={(o) => o.toUpperCase()}
+                renderInput={(p) => <TextField {...p} label="Modes" placeholder="Any mode" />} />
+              <Autocomplete multiple freeSolo options={[]} value={sub.callsigns} onChange={(e, v) => set("callsigns", v.map(x => x.toUpperCase().trim()))}
+                renderInput={(p) => <TextField {...p} label="Callsigns" placeholder="Type a call and press Enter" helperText="Leave empty to match any station." />} />
+              <TextField label="Park, summit, or location contains" value={sub.reference} onChange={e => set("reference", e.target.value)}
+                placeholder="US-NC, W4C/, US-0817" helperText="Matches POTA references and locations, and SOTA summit codes." fullWidth />
+              <FormControl fullWidth>
+                <InputLabel id="quiet">Repeat spots for the same station</InputLabel>
+                <Select labelId="quiet" label="Repeat spots for the same station" value={sub.quiet} onChange={e => set("quiet", e.target.value)}>
+                  <MenuItem value={0}>Send every spot</MenuItem>
+                  <MenuItem value={5}>At most once every 5 minutes</MenuItem>
+                  <MenuItem value={10}>At most once every 10 minutes</MenuItem>
+                  <MenuItem value={30}>At most once every 30 minutes</MenuItem>
+                  <MenuItem value={60}>At most once an hour</MenuItem>
+                </Select>
+              </FormControl>
+              <Autocomplete
+                multiple
+                disableCloseOnSelect
+                options={[...dests].sort((a, b) => typeLabel(a.type).localeCompare(typeLabel(b.type)) || a.name.localeCompare(b.name))}
+                groupBy={(d) => typeLabel(d.type)}
+                getOptionLabel={(d) => d.name}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                value={dests.filter(d => sub.destinations.includes(d.id))}
+                onChange={(e, v) => set("destinations", v.map(d => d.id))}
+                noOptionsText="No destinations match"
+                renderOption={(props, d, { selected }) => (
+                  <Box component="li" {...props} key={d.id}>
+                    <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
+                    <ListItemText primary={d.name} secondary={d.health === "failing" ? "Failing" : null} secondaryTypographyProps={{ color: "error" }} />
+                  </Box>
+                )}
+                renderInput={(p) => (
+                  <TextField {...p} label="Send matches to" placeholder={sub.destinations.length ? "" : "Search destinations"} required
+                    error={dests.length === 0} helperText={dests.length === 0 ? "Add a destination first." : "Pick one or more."} />
+                )}
+              />
+            </Stack>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ height: "100%" }}>
+              <Box sx={{ p: 2 }}>
+                <Typography variant="subtitle1">Preview</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {preview.length} of the last {SPOTS.length} spots would have matched.
+                </Typography>
+                <LinearProgress variant="determinate" value={(preview.length / SPOTS.length) * 100} sx={{ mt: 1 }} />
+                {preview.length === SPOTS.length && <Alert severity="warning" sx={{ mt: 2 }}>This matches everything. Add a filter or expect a lot of messages.</Alert>}
+              </Box>
+              <Divider />
+              <List dense sx={{ maxHeight: { xs: 280, md: 420 }, overflowY: "auto" }}>
+                {preview.map((s, i) => (
+                  <ListItem key={i}>
+                    <ListItemText primary={`${s.call} on ${s.freq.toFixed(1)} kHz ${s.mode.toUpperCase()}`} secondary={`${s.ref} · ${srcName(s.src)} · ${s.t}`} />
+                  </ListItem>
+                ))}
+                {preview.length === 0 && <ListItem><ListItemText secondary="Nothing recent matches. That can be fine for a narrow filter." /></ListItem>}
+              </List>
+            </Paper>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" disabled={!sub.name || sub.destinations.length === 0} onClick={() => onSave(sub)}>
+          {initial.id ? "Save changes" : "Create subscription"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function filterChips(sub) {
+  const chips = [];
+  chips.push(sub.sources.length ? sub.sources.map(srcName).join(", ") : "All sources");
+  if (sub.bands.length) chips.push(sub.bands.join(", "));
+  if (sub.modes.length) chips.push(sub.modes.map(m => m.toUpperCase()).join(", "));
+  if (sub.callsigns.length) chips.push(sub.callsigns.join(", "));
+  if (sub.reference) chips.push(`Ref contains ${sub.reference}`);
+  if (sub.quiet) chips.push(`Once per ${sub.quiet} min`);
+  return chips;
+}
+
+function SubscriptionsPage({ subs, setSubs, dests, notify, fullScreen, goDestinations }) {
+  const [editing, setEditing] = useState(null);
+  const save = (s) => {
+    if (s.id) { setSubs(subs.map(x => x.id === s.id ? s : x)); notify("Saved changes"); }
+    else { setSubs([...subs, { ...s, id: "s" + Date.now() }]); notify(`Created ${s.name}`); }
+    setEditing(null);
+  };
+  return (
+    <Stack spacing={3}>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-end" }} spacing={2}>
+        <Box>
+          <PageTitle>Subscriptions</PageTitle>
+          <Typography color="text.secondary">A subscription picks which spots you care about and sends them to one or more destinations.</Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing(blankSub())} sx={{ flexShrink: 0 }}>New subscription</Button>
+      </Stack>
+      {dests.length === 0 && <Alert severity="info" action={<Button color="inherit" size="small" onClick={goDestinations}>Add one</Button>}>You need at least one destination before creating a subscription.</Alert>}
+      <Grid container spacing={2}>
+        {subs.map(s => {
+          const hits = SPOTS.filter(sp => matches(s, sp)).length;
+          return (
+            <Grid item xs={12} md={6} key={s.id}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Typography variant="h6" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>{s.name}</Typography>
+                    <FormControlLabel label={s.enabled ? "On" : "Paused"} labelPlacement="start"
+                      control={<Switch checked={s.enabled} onChange={(e) => setSubs(subs.map(x => x.id === s.id ? { ...x, enabled: e.target.checked } : x))} />} />
+                  </Stack>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ my: 1.5 }}>
+                    {filterChips(s).map((c, i) => <Chip key={i} size="small" label={c} />)}
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    Sends to {s.destinations.map(id => dests.find(d => d.id === id)?.name).filter(Boolean).join(", ") || "nothing"}.
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">{hits} of the last {SPOTS.length} spots matched.</Typography>
+                </CardContent>
+                <CardActions>
+                  <Button size="small" startIcon={<EditIcon />} onClick={() => setEditing(s)}>Edit</Button>
+                  <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => { setSubs(subs.filter(x => x.id !== s.id)); notify(`Deleted ${s.name}`); }}>Delete</Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+      {editing && <SubscriptionDialog open initial={editing} dests={dests} onClose={() => setEditing(null)} onSave={save} fullScreen={fullScreen} />}
+    </Stack>
+  );
+}
+
+const CALLSIGN_RE = /^[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}[A-Z](\/[A-Z0-9]+)?$/;
+
+// ---------- Account page ----------
+const TIMEZONES = ["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Europe/Berlin", "Asia/Tokyo"];
+
+function AccountPage({ account, setAccount, notify, onSignOut, onDelete }) {
+  const [draft, setDraft] = useState(account);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(account);
+  const callsignValid = CALLSIGN_RE.test(draft.callsign);
+
+  return (
+    <Stack spacing={3} sx={{ maxWidth: 640, width: "100%" }}>
+      <Box>
+        <PageTitle>Account</PageTitle>
+        <Typography color="text.secondary">Your callsign and how we reach you.</Typography>
+      </Box>
+
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Profile</Typography>
+        <Stack spacing={2.5} sx={{ mt: 2 }}>
+          <TextField label="Callsign" value={draft.callsign} onChange={e => set("callsign", e.target.value.toUpperCase().trim())}
+            error={!callsignValid} helperText={callsignValid ? "Shown on your subscriptions and in group rosters." : "Enter a valid amateur callsign, like KK4PWJ."} fullWidth />
+          <TextField label="Name" value={draft.name} onChange={e => set("name", e.target.value)} fullWidth />
+          <TextField label="Email" type="email" value={draft.email} onChange={e => set("email", e.target.value)}
+            helperText="Used to sign in. Changing it sends a confirmation link to the new address." fullWidth />
+          <FormControl fullWidth>
+            <InputLabel id="tz">Time zone</InputLabel>
+            <Select labelId="tz" label="Time zone" value={draft.timezone} onChange={e => set("timezone", e.target.value)}>
+              {TIMEZONES.map(z => <MenuItem key={z} value={z}>{z}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControlLabel control={<Switch checked={draft.utcTimes} onChange={e => set("utcTimes", e.target.checked)} />} label="Show spot times in UTC" />
+        </Stack>
+        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 3 }}>
+          <Button disabled={!dirty} onClick={() => setDraft(account)}>Discard</Button>
+          <Button variant="contained" disabled={!dirty || !callsignValid} onClick={() => {
+            const emailChanged = draft.email !== account.email;
+            setAccount(draft);
+            notify(emailChanged ? `Saved. Check ${draft.email} to confirm the change.` : "Saved changes");
+          }}>Save changes</Button>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Password</Typography>
+        <ChangePassword notify={notify} />
+        <Divider sx={{ my: 3 }} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>You last signed in on Oct 5, 2026.</Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button variant="outlined" onClick={() => notify("Signed out of all other devices")}>Sign out other devices</Button>
+          <Button variant="outlined" onClick={onSignOut}>Sign out</Button>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 3, borderColor: "error.main" }}>
+        <Typography variant="h6" color="error" gutterBottom>Delete account</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Removes your subscriptions and destinations immediately. Spots already delivered are not recalled.
+        </Typography>
+        <Button variant="outlined" color="error" onClick={() => setConfirmOpen(true)}>Delete account</Button>
+      </Paper>
+
+      <Dialog open={confirmOpen} onClose={() => { setConfirmOpen(false); setConfirmText(""); }} fullWidth maxWidth="xs">
+        <DialogTitle>Delete your account?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>This can't be undone. Type <Typography component="span" variant="body2" fontWeight="bold">{account.callsign}</Typography> to confirm.</Typography>
+          <TextField autoFocus fullWidth value={confirmText} onChange={e => setConfirmText(e.target.value.toUpperCase())} placeholder={account.callsign} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setConfirmOpen(false); setConfirmText(""); }}>Cancel</Button>
+          <Button color="error" variant="contained" disabled={confirmText !== account.callsign} onClick={() => { setConfirmOpen(false); setConfirmText(""); onDelete(); }}>Delete account</Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
+  );
+}
+
+function ChangePassword({ notify }) {
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const short = next.length > 0 && next.length < 8;
+  const mismatch = confirm.length > 0 && confirm !== next;
+  const ok = cur && next.length >= 8 && confirm === next;
+  return (
+    <Stack spacing={2} sx={{ mt: 2 }}>
+      <TextField label="Current password" type="password" value={cur} onChange={e => setCur(e.target.value)} autoComplete="current-password" fullWidth />
+      <TextField label="New password" type="password" value={next} onChange={e => setNext(e.target.value)} autoComplete="new-password"
+        error={short} helperText={short ? "Use at least 8 characters." : "At least 8 characters."} fullWidth />
+      <TextField label="Confirm new password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password"
+        error={mismatch} helperText={mismatch ? "Passwords don't match." : " "} fullWidth />
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="contained" disabled={!ok} onClick={() => { setCur(""); setNext(""); setConfirm(""); notify("Password changed"); }}>Change password</Button>
+      </Box>
+    </Stack>
+  );
+}
+
+function AuthPage({ notice, onAuthenticated }) {
+  const [mode, setMode] = useState("signin"); // signin | signup | reset
+  const [error, setError] = useState(null);
+  const [info, setInfo] = useState(notice);
+  const [busy, setBusy] = useState(false);
+
+  // sign in
+  const [ident, setIdent] = useState("");
+  const [pw, setPw] = useState("");
+  // sign up
+  const [su, setSu] = useState({ callsign: "", name: "", email: "", password: "", confirm: "" });
+  const setF = (k, v) => setSu(x => ({ ...x, [k]: v }));
+  const [touched, setTouched] = useState({});
+  const touch = (k) => setTouched(t => ({ ...t, [k]: true }));
+  // reset
+  const [resetEmail, setResetEmail] = useState("");
+
+  const switchMode = (m) => { setMode(m); setError(null); setInfo(null); };
+  const fake = (fn) => { setBusy(true); setError(null); setTimeout(() => { setBusy(false); fn(); }, 300); };
+
+  const signIn = (e) => {
+    e.preventDefault();
+    fake(() => {
+      const isEmail = ident.includes("@");
+      onAuthenticated(isEmail ? { email: ident } : { callsign: ident.toUpperCase() });
+    });
+  };
+
+  const csErr = touched.callsign && !CALLSIGN_RE.test(su.callsign);
+  const emErr = touched.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(su.email);
+  const pwErr = touched.password && su.password.length < 8;
+  const cfErr = touched.confirm && su.confirm !== su.password;
+  const signupOk = CALLSIGN_RE.test(su.callsign) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(su.email) && su.password.length >= 8 && su.confirm === su.password;
+
+  const signUp = (e) => {
+    e.preventDefault();
+    setTouched({ callsign: true, email: true, password: true, confirm: true });
+    if (!signupOk) return;
+    fake(() => {
+      onAuthenticated({ callsign: su.callsign, name: su.name, email: su.email }, true);
+    });
+  };
+
+  const sendReset = (e) => {
+    e.preventDefault();
+    fake(() => { setInfo(`If an account uses ${resetEmail}, a reset link is on its way.`); setMode("signin"); });
+  };
+
+  return (
+    <Container maxWidth="xs" sx={{ py: { xs: 4, sm: 10 } }}>
+      <Typography variant="h4" align="center" gutterBottom>Long Lines</Typography>
+      <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>Ham radio spots, routed where you want them.</Typography>
+      <Paper variant="outlined">
+        {mode !== "reset" && (
+          <Tabs value={mode} onChange={(e, v) => switchMode(v)} variant="fullWidth">
+            <Tab value="signin" label="Sign in" />
+            <Tab value="signup" label="Create account" />
+          </Tabs>
+        )}
+        {busy && <LinearProgress />}
+        <Box sx={{ p: 3 }}>
+          {info && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setInfo(null)}>{info}</Alert>}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+          {mode === "signin" && (
+            <Box component="form" onSubmit={signIn} noValidate>
+              <Stack spacing={2}>
+                <TextField label="Callsign or email" value={ident} onChange={e => setIdent(e.target.value)} autoComplete="username" autoFocus fullWidth />
+                <TextField label="Password" type="password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="current-password" fullWidth />
+                <Button type="submit" variant="contained" size="large" disabled={!ident || !pw || busy} fullWidth>Sign in</Button>
+                <Button size="small" onClick={() => switchMode("reset")}>Forgot your password?</Button>
+              </Stack>
+            </Box>
+          )}
+
+          {mode === "signup" && (
+            <Box component="form" onSubmit={signUp} noValidate>
+              <Stack spacing={2}>
+                <TextField label="Callsign" value={su.callsign} onChange={e => setF("callsign", e.target.value.toUpperCase().trim())} onBlur={() => touch("callsign")}
+                  error={csErr} helperText={csErr ? "Enter a valid amateur callsign, like KK4PWJ." : "You'll use this to sign in."} autoComplete="username" autoFocus required fullWidth />
+                <TextField label="Name" value={su.name} onChange={e => setF("name", e.target.value)} autoComplete="name" helperText="Optional" fullWidth />
+                <TextField label="Email" type="email" value={su.email} onChange={e => setF("email", e.target.value)} onBlur={() => touch("email")}
+                  error={emErr} helperText={emErr ? "Enter a valid email address." : "For password resets. We don't send newsletters."} autoComplete="email" required fullWidth />
+                <TextField label="Password" type="password" value={su.password} onChange={e => setF("password", e.target.value)} onBlur={() => touch("password")}
+                  error={pwErr} helperText={pwErr ? "Use at least 8 characters." : "At least 8 characters."} autoComplete="new-password" required fullWidth />
+                <TextField label="Confirm password" type="password" value={su.confirm} onChange={e => setF("confirm", e.target.value)} onBlur={() => touch("confirm")}
+                  error={cfErr} helperText={cfErr ? "Passwords don't match." : " "} autoComplete="new-password" required fullWidth />
+                <Button type="submit" variant="contained" size="large" disabled={busy} fullWidth>Create account</Button>
+              </Stack>
+            </Box>
+          )}
+
+          {mode === "reset" && (
+            <Box component="form" onSubmit={sendReset} noValidate>
+              <Typography variant="h6" gutterBottom>Reset your password</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Enter the email on your account and we'll send a link to set a new password.</Typography>
+              <Stack spacing={2}>
+                <TextField label="Email" type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} autoComplete="email" autoFocus fullWidth />
+                <Button type="submit" variant="contained" disabled={!resetEmail || busy} fullWidth>Send reset link</Button>
+                <Button size="small" onClick={() => switchMode("signin")}>Back to sign in</Button>
+              </Stack>
+            </Box>
+          )}
+        </Box>
+      </Paper>
+    </Container>
+  );
+}
+
+// ---------- Shell ----------
+const NAV = [
+  { id: "sources", label: "Sources", icon: <SourcesIcon /> },
+  { id: "subscriptions", label: "Subscriptions", icon: <SubIcon /> },
+  { id: "destinations", label: "Destinations", icon: <DestIcon /> },
+];
+const DRAWER = 232;
+
+function App() {
+  const dark = useMediaQuery("(prefers-color-scheme: dark)");
+  const theme = useMemo(() => createTheme({ palette: { mode: dark ? "dark" : "light" } }), [dark]);
+  const mobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [page, setPage] = useState("sources");
+  const [navOpen, setNavOpen] = useState(false);
+  const [dests, setDests] = useState(initialDests);
+  const [subs, setSubs] = useState(initialSubs);
+  const [toast, setToast] = useState(null);
+  const [account, setAccount] = useState({ callsign: "KK4PWJ", name: "Brad", email: "kk4pwj@example.com", timezone: "America/New_York", utcTimes: true });
+  const [menuEl, setMenuEl] = useState(null);
+  const [authState, setAuthState] = useState("out"); // "in" | "out" | "deleted"
+  const go = (p) => { setPage(p); setMenuEl(null); };
+
+  if (authState !== "in") {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthPage
+          key={authState}
+          notice={authState === "deleted" ? "Your account was deleted. You can create a new one any time." : null}
+          onAuthenticated={(acc, isNew) => {
+            setAccount(a => ({ ...a, ...acc, name: acc.name ?? a.name, email: acc.email ?? a.email, callsign: acc.callsign ?? a.callsign }));
+            if (isNew) { setDests([]); setSubs([]); setPage("destinations"); setToast(`Welcome, ${acc.callsign}. Start by adding a destination.`); }
+            else { setPage("sources"); }
+            setAuthState("in");
+          }}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  const nav = (
+    <Box>
+      <Toolbar />
+      <List>
+        {NAV.map(n => (
+          <ListItemButton key={n.id} selected={page === n.id} onClick={() => { setPage(n.id); setNavOpen(false); }}>
+            <ListItemIcon>{n.id === "destinations" ? <Badge color="error" variant="dot" invisible={!dests.some(d => d.health === "failing")}>{n.icon}</Badge> : n.icon}</ListItemIcon>
+            <ListItemText primary={n.label} />
+          </ListItemButton>
+        ))}
+      </List>
+      <Divider />
+      <List dense>
+        <ListItem><ListItemText primary="Groups" secondary="Coming later" /></ListItem>
+        <ListItem><ListItemText primary="Stats" secondary="Coming later" /></ListItem>
+      </List>
+    </Box>
+  );
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: "flex" }}>
+        <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1, pt: "env(safe-area-inset-top, 0px)" }}>
+          <Toolbar>
+            {mobile && <IconButton color="inherit" edge="start" onClick={() => setNavOpen(true)} sx={{ mr: 1 }} aria-label="Open navigation"><MenuIcon /></IconButton>}
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>Long Lines</Typography>
+            <IconButton color="inherit" onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Account menu" sx={{ display: { xs: "inline-flex", sm: "none" } }}>
+              <Avatar sx={{ width: 32, height: 32 }}>{account.callsign.slice(0, 2)}</Avatar>
+            </IconButton>
+            <Button color="inherit" onClick={(e) => setMenuEl(e.currentTarget)} startIcon={<Avatar sx={{ width: 28, height: 28 }}>{account.callsign.slice(0, 2)}</Avatar>} aria-label="Account menu" sx={{ display: { xs: "none", sm: "inline-flex" } }}>
+              {account.callsign}
+            </Button>
+            <Menu anchorEl={menuEl} open={!!menuEl} onClose={() => setMenuEl(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="subtitle2">{account.name}</Typography>
+                <Typography variant="body2" color="text.secondary">{account.email}</Typography>
+              </Box>
+              <Divider />
+              <MenuItem onClick={() => go("account")}>Account</MenuItem>
+              <MenuItem onClick={() => { setMenuEl(null); setAuthState("out"); }}>Sign out</MenuItem>
+            </Menu>
+          </Toolbar>
+        </AppBar>
+        <Drawer
+          variant={mobile ? "temporary" : "permanent"}
+          open={mobile ? navOpen : true}
+          onClose={() => setNavOpen(false)}
+          sx={{ width: DRAWER, flexShrink: 0, "& .MuiDrawer-paper": { width: DRAWER, boxSizing: "border-box" } }}
+        >{nav}</Drawer>
+        <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Toolbar />
+          <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }}>
+            {page === "sources" && <SourcesPage />}
+            {page === "subscriptions" && <SubscriptionsPage subs={subs} setSubs={setSubs} dests={dests} notify={setToast} fullScreen={mobile} goDestinations={() => setPage("destinations")} />}
+            {page === "destinations" && <DestinationsPage dests={dests} setDests={setDests} subs={subs} notify={setToast} />}
+            {page === "account" && <AccountPage account={account} setAccount={setAccount} notify={setToast}
+              onSignOut={() => setAuthState("out")} onDelete={() => setAuthState("deleted")} />}
+          </Container>
+        </Box>
+      </Box>
+      <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} message={toast} anchorOrigin={{ vertical: "bottom", horizontal: "center" }} />
+    </ThemeProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

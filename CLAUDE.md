@@ -28,6 +28,7 @@ supabase functions serve      # serve both functions against the local stack
 docker exec -i supabase_db_longlines psql -U postgres   # psql is not installed; use the container
 
 psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/smoke-test.sql   # schema smoke test, also run by CI
+supabase test db                       # pgTAP suites in supabase/tests/*.test.sql (local db must be running)
 
 supabase db push                       # hosted: apply migrations
 supabase functions deploy ingest-pota  # hosted: deploy one function
@@ -63,6 +64,20 @@ Local invocation: `curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota 
 `.github/workflows/claude-review.yml` posts a Claude Code review on PRs; it needs the
 `ANTHROPIC_API_KEY` repository secret. Migrations already applied to the hosted project must not
 be edited; add a new migration instead (see `20261005000009_*`).
+
+## Phase 2 schema rules
+
+- Client writes to `destinations` and `subscriptions` go through RPCs (`create_destination`,
+  `rotate_signing_secret`, `save_subscription`, `delete_subscription`). Direct insert/update is
+  revoked on purpose; the only direct client write is `subscriptions.enabled`.
+- `destinations.url` and `signing_secret` are excluded from the column grant. Never add them to a
+  view or RPC result except the one-time return from `create_destination`/`rotate_signing_secret`.
+- `recent_spots` is the only client view over `raw_spots`; keep `raw_payload` out of it.
+- Service-role-only tables (`deliveries`, `subscription_quiet`, `sign_in_attempts`) have RLS on and
+  no policies. Functions that touch `auth.users` are `security definer` with execute granted only
+  to `service_role`.
+- pgTAP tests include `helpers/users.psql` (not `.sql`, so the runner skips it) and use
+  `pg_temp.as_user(uuid)` to assert RLS from a user's point of view.
 
 ## Conventions
 

@@ -9,7 +9,7 @@
   },
   "tasks": {
     "test": "deno test -P supabase/functions/_shared/__tests__/",
-    "check": "deno check supabase/functions/ingest-pota/index.ts supabase/functions/ingest-sotawatch/index.ts",
+    "check": "deno check supabase/functions/ingest-pota/index.ts supabase/functions/ingest-sotawatch/index.ts supabase/functions/sign-in/index.ts supabase/functions/delete-account/index.ts",
     "lint": "deno lint supabase/functions",
     "fmt": "deno fmt supabase/functions deno.json"
   },
