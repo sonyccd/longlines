@@ -62,12 +62,15 @@ function fakeAdapter(
   return adapter;
 }
 
-function fakeDb(options: { lastEpoch?: string | null; insertAll?: boolean } = {}) {
+function fakeDb(
+  options: { lastEpoch?: string | null; insertAll?: boolean; matcherFails?: boolean } = {},
+) {
   const calls = {
     ingested: [] as NormalizedSpot[][],
     failures: [] as SpotFailure[][],
     success: [] as Array<[Source, number, string | null]>,
     failure: [] as Array<[Source, string]>,
+    matched: 0,
   };
   const db: IngestDb = {
     getLastEpoch: () => Promise.resolve(options.lastEpoch ?? null),
@@ -93,6 +96,10 @@ function fakeDb(options: { lastEpoch?: string | null; insertAll?: boolean } = {}
     recordFailure(source, error) {
       calls.failure.push([source, error]);
       return Promise.resolve();
+    },
+    matchPendingSpots() {
+      calls.matched += 1;
+      return options.matcherFails ? Promise.reject(new Error("matcher down")) : Promise.resolve(3);
     },
   };
   return { db, calls };
@@ -174,4 +181,28 @@ Deno.test("runIngest records a function-level failure when the feed has the wron
   adapter.fetchSpots = () => Promise.resolve({ error: "maintenance" });
   await assertRejects(() => runIngest(adapter, db, NOW), Error, "bad shape");
   assertEquals(calls.failure, [["pota", "bad shape"]]);
+});
+
+Deno.test("runIngest runs the matcher after recording success when spots were inserted", async () => {
+  const { db, calls } = fakeDb();
+  const summary = await runIngest(fakeAdapter([{ id: 1 }]), db, NOW);
+  assertEquals(calls.matched, 1);
+  assertEquals(summary.matched, 3);
+  assertEquals(calls.success.length, 1);
+});
+
+Deno.test("runIngest skips the matcher when nothing was inserted", async () => {
+  const { db, calls } = fakeDb();
+  const summary = await runIngest(fakeAdapter([{ id: 1, skip: true }]), db, NOW);
+  assertEquals(calls.matched, 0);
+  assertEquals(summary.matched, null);
+});
+
+Deno.test("runIngest reports a matcher failure without failing the ingest run", async () => {
+  const { db, calls } = fakeDb({ matcherFails: true });
+  const summary = await runIngest(fakeAdapter([{ id: 1 }]), db, NOW);
+  assertEquals(summary.inserted, 1);
+  assertEquals(summary.matched, null);
+  assertEquals(summary.match_error, "matcher down");
+  assertEquals(calls.failure, []);
 });
