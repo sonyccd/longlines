@@ -34,13 +34,6 @@ export function cleanSotaSpotter(
   return cleaned;
 }
 
-/** Lowercase, trimmed. Null when missing or empty. */
-export function cleanMode(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const cleaned = value.trim().toLowerCase();
-  return cleaned === "" ? null : cleaned;
-}
-
 /** Trimmed; null becomes "". */
 export function cleanPotaComment(value: string | null | undefined): string {
   return (value ?? "").trim();

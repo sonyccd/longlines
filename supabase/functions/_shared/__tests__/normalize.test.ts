@@ -1,7 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import {
   cleanCallsign,
-  cleanMode,
   cleanPotaComment,
   cleanPotaSpotter,
   cleanSotaComment,
@@ -39,12 +38,6 @@ Deno.test("cleanSotaSpotter extracts the real spotter from an RBNHole comment", 
 
 Deno.test("cleanSotaSpotter keeps RBNHOLE when the comment has no match", () => {
   assertEquals(cleanSotaSpotter("RBNHOLE", "something else"), "RBNHOLE");
-});
-
-Deno.test("cleanMode lowercases and trims, empty becomes null", () => {
-  assertEquals(cleanMode(" CW "), "cw");
-  assertEquals(cleanMode(""), null);
-  assertEquals(cleanMode(null), null);
 });
 
 Deno.test("cleanPotaComment trims and maps null to empty string", () => {

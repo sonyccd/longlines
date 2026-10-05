@@ -119,6 +119,8 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - Time-dependent functions take `now: Date` so tests pin the clock. Fixtures were captured
   2026-10-05 ~13:45Z; tests set `NOW` inside the five-minute window of the spots they expect to
   keep.
+- Mode canonicalization, the comment hint and `mode_family` live in `_shared/modes.ts`. SQL only
+  compares strings against `mode` and `mode_family`; never re-derive the family in SQL or the web.
 - POTA `spotTime` has no timezone; `parseUtc` appends `Z`. SOTAwatch `type` may be null and is
   treated as NORMAL. The QRT fixture spot has a null frequency, so the type check must stay ahead
   of frequency parsing.

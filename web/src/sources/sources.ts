@@ -24,4 +24,9 @@ export function sourceName(id: string): string {
 }
 
 export const BANDS = ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "2m", "70cm"];
-export const MODES = ["cw", "ssb", "fm", "am", "ft8", "ft4", "rtty", "psk"];
+export const MODES = ["digital", "cw", "ssb", "fm", "am", "ft8", "ft4", "rtty", "psk"];
+
+/** "digital" is a mode family (see _shared/modes.ts); everything else is a specific mode. */
+export function modeLabel(m: string): string {
+  return m === "digital" ? "Any digital" : m.toUpperCase();
+}

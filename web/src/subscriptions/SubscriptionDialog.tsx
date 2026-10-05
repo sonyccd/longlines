@@ -7,7 +7,7 @@ import {
 import { previewSubscription, type Destination, type Preview, type SubscriptionInput } from "../lib/api";
 import { formatSpotTime, type TimePrefs } from "../lib/time";
 import { errorText } from "../app/hooks";
-import { BANDS, LIVE_SOURCES, MODES, sourceName } from "../sources/sources";
+import { BANDS, LIVE_SOURCES, MODES, modeLabel, sourceName } from "../sources/sources";
 import { spotReference } from "../sources/spots";
 import { typeLabel } from "../destinations/types";
 import { PREVIEW_WINDOW } from "./model";
@@ -81,8 +81,8 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
               </FormControl>
               <Autocomplete multiple options={BANDS} value={sub.bands} onChange={(_e, v) => set("bands", v)}
                 renderInput={(p) => <TextField {...p} label="Bands" placeholder="Any band" />} />
-              <Autocomplete multiple options={MODES} value={sub.modes} onChange={(_e, v) => set("modes", v)} getOptionLabel={(o) => o.toUpperCase()}
-                renderInput={(p) => <TextField {...p} label="Modes" placeholder="Any mode" />} />
+              <Autocomplete multiple options={MODES} value={sub.modes} onChange={(_e, v) => set("modes", v)} getOptionLabel={modeLabel}
+                renderInput={(p) => <TextField {...p} label="Modes" placeholder="Any mode" helperText="SOTAwatch reports every digital mode as DATA. Choose Any digital to include those spots." />} />
               <Autocomplete
                 multiple freeSolo options={[] as string[]} value={sub.callsigns}
                 onChange={(_e, v) => set("callsigns", v.map((x) => x.toUpperCase().trim()).filter(Boolean))}

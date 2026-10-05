@@ -94,6 +94,7 @@ select public.ingest_spots(jsonb_build_array(jsonb_build_object(
   'frequency_khz', 10123.9,
   'band', '30m',
   'mode', 'cw',
+  'mode_family', 'cw',
   'comment', 'RBN 22 dB 19 WPM via OK1HRA-#',
   'pota_reference', 'DE-0858',
   'pota_park_name', 'Via Sancti Martini National Historic Trail',

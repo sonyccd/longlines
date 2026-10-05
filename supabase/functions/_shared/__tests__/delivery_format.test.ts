@@ -16,6 +16,7 @@ const spot: DeliverySpot = {
   frequency_khz: 14062,
   band: "20m",
   mode: "cw",
+  mode_family: "cw",
   comment: "CQ POTA",
   pota_reference: "US-2763",
   pota_park_name: "Eno River State Park",
@@ -65,6 +66,7 @@ Deno.test("embedForSpot shows the summit for SOTAwatch spots and omits empty fac
     sota_summit_ref: "W4C/CM-001",
     spotter: null,
     mode: null,
+    mode_family: null,
     band: null,
   });
   assertEquals(e.description, "14062.0 kHz");

@@ -1,5 +1,5 @@
 import type { SubscriptionInput, SubscriptionWithLinks } from "../lib/api";
-import { sourceName } from "../sources/sources";
+import { modeLabel, sourceName } from "../sources/sources";
 
 export const PREVIEW_WINDOW = 200;
 
@@ -18,7 +18,7 @@ export function filterChips(sub: SubscriptionInput): string[] {
   const chips: string[] = [];
   chips.push(sub.sources.length ? sub.sources.map(sourceName).join(", ") : "All sources");
   if (sub.bands.length) chips.push(sub.bands.join(", "));
-  if (sub.modes.length) chips.push(sub.modes.map((m) => m.toUpperCase()).join(", "));
+  if (sub.modes.length) chips.push(sub.modes.map(modeLabel).join(", "));
   if (sub.callsigns.length) chips.push(sub.callsigns.join(", "));
   if (sub.reference) chips.push(`Ref contains ${sub.reference}`);
   if (sub.quiet_minutes) chips.push(`Once per ${sub.quiet_minutes} min`);

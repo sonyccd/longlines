@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 \ir helpers/users.psql
-select plan(26);
+select plan(30);
 
 -- Drain anything already queued so counts below are exact.
 select pgmq.purge_queue('spot_events');
@@ -19,9 +19,9 @@ create or replace function pg_temp.sub(p_sources text[], p_bands text[], p_modes
 returns subscriptions language sql as $$
   select (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'x', true, p_sources, p_bands, p_modes, p_calls, p_ref, 0, now(), now())::subscriptions;
 $$;
-create or replace function pg_temp.spot(p_source text, p_call text, p_band text, p_mode text, p_ref text, p_loc text, p_summit text)
+create or replace function pg_temp.spot(p_source text, p_call text, p_band text, p_mode text, p_ref text, p_loc text, p_summit text, p_family text default null)
 returns raw_spots language sql as $$
-  select (0, p_source, 'x', 'x', now(), now(), p_call, null, 14062, p_band, p_mode, '', p_ref, null, p_loc, p_summit, '{}'::jsonb)::raw_spots;
+  select (0, p_source, 'x', 'x', now(), now(), p_call, null, 14062, p_band, p_mode, '', p_ref, null, p_loc, p_summit, '{}'::jsonb, p_family)::raw_spots;
 $$;
 
 -- spot_matches rules.
@@ -33,6 +33,10 @@ select ok(not spot_matches(pg_temp.sub('{}','{40m}','{}','{}',''), pg_temp.spot(
 select ok(not spot_matches(pg_temp.sub('{}','{20m}','{}','{}',''), pg_temp.spot('pota','KK4PWJ',null,'cw',null,null,null)), 'null band never matches a band filter');
 select ok(spot_matches(pg_temp.sub('{}','{}','{cw}','{}',''), pg_temp.spot('pota','KK4PWJ','20m','cw',null,null,null)), 'mode matches');
 select ok(not spot_matches(pg_temp.sub('{}','{}','{ssb}','{}',''), pg_temp.spot('pota','KK4PWJ','20m','cw',null,null,null)), 'mode mismatch');
+select ok(spot_matches(pg_temp.sub('{}','{}','{digital}','{}',''), pg_temp.spot('pota','KK4PWJ','20m','ft8',null,null,null,'digital')), 'family filter matches a specific digital mode');
+select ok(spot_matches(pg_temp.sub('{}','{}','{digital}','{}',''), pg_temp.spot('sotawatch','W7JZ','20m','data',null,null,null,'digital')), 'family filter matches SOTAwatch DATA');
+select ok(not spot_matches(pg_temp.sub('{}','{}','{ft8}','{}',''), pg_temp.spot('sotawatch','W7JZ','20m','data',null,null,null,'digital')), 'specific mode filter does not match generic DATA');
+select ok(not spot_matches(pg_temp.sub('{}','{}','{cw}','{}',''), pg_temp.spot('pota','KK4PWJ','20m',null,null,null,null)), 'null mode never matches a mode filter');
 select ok(spot_matches(pg_temp.sub('{}','{}','{}','{KK4PWJ}',''), pg_temp.spot('pota','KK4PWJ','20m','cw',null,null,null)), 'callsign exact match');
 select ok(not spot_matches(pg_temp.sub('{}','{}','{}','{KK4PWJ}',''), pg_temp.spot('pota','KK4PWJ/P','20m','cw',null,null,null)), 'callsign is exact, not prefix');
 select ok(spot_matches(pg_temp.sub('{}','{}','{}','{}','us-nc'), pg_temp.spot('pota','KK4PWJ','20m','cw','US-2763','US-NC,US-VA',null)), 'reference matches location, case-insensitive');

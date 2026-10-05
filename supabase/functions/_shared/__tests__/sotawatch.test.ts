@@ -41,6 +41,7 @@ Deno.test("sotawatch.normalize maps a fixture spot to the common schema", async 
   assertEquals(s.frequency_khz, 7097);
   assertEquals(s.band, "40m");
   assertEquals(s.mode, "ssb");
+  assertEquals(s.mode_family, "phone");
   assertEquals(s.comment, "[sotl.as]");
   assertEquals(s.sota_summit_ref, "SP/SS-004");
   assertEquals(s.pota_reference, null);
@@ -64,6 +65,23 @@ Deno.test("sotawatch.normalize hashes timeStamp, activatorCallsign, summitCode, 
       raw["comments"],
     ]),
   );
+});
+
+Deno.test("sotawatch.normalize keeps DATA as a digital-family mode", async () => {
+  const result = await sotawatch.normalize({ ...spot(405157), mode: "DATA", comments: "QRP" }, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.mode, "data");
+  assertEquals(result.spot.mode_family, "digital");
+});
+
+Deno.test("sotawatch.normalize resolves DATA to the mode named in the comment", async () => {
+  const result = await sotawatch.normalize(
+    { ...spot(405157), mode: "DATA", comments: "FT8 QRP" },
+    NOW,
+  );
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.mode, "ft8");
+  assertEquals(result.spot.mode_family, "digital");
 });
 
 Deno.test("sotawatch.normalize extracts the spotter from RBNHole comments and accepts null type", async () => {

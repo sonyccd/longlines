@@ -25,10 +25,12 @@ begin
 
   -- ingest_spots inserts, dedups and enqueues.
   select count(*) into first_pass from public.ingest_spots('[
-    {"source":"pota","source_spot_id":"smoke-1","content_hash":"a","spot_time":"2026-10-05T13:37:03Z","callsign":"W1AW","spotter":null,"frequency_khz":14074,"band":"20m","mode":"ft8","comment":"","raw_payload":{}},
+    {"source":"pota","source_spot_id":"smoke-1","content_hash":"a","spot_time":"2026-10-05T13:37:03Z","callsign":"W1AW","spotter":null,"frequency_khz":14074,"band":"20m","mode":"ft8","mode_family":"digital","comment":"","raw_payload":{}},
     {"source":"sotawatch","source_spot_id":"smoke-2","content_hash":"b","spot_time":"2026-10-05T13:37:03Z","callsign":"SQ1GPR/P","spotter":"SQ1GPR","frequency_khz":7097,"band":"40m","mode":"ssb","comment":"","sota_summit_ref":"SP/SS-004","raw_payload":{}}
   ]'::jsonb);
   assert first_pass = 2, format('expected 2 inserted rows, got %s', first_pass);
+  assert (select mode_family from raw_spots where source = 'pota' and source_spot_id = 'smoke-1') = 'digital',
+    'expected smoke-1 to store mode_family digital';
 
   select count(*) into second_pass from public.ingest_spots('[
     {"source":"pota","source_spot_id":"smoke-1","content_hash":"a","spot_time":"2026-10-05T13:37:03Z","callsign":"W1AW","frequency_khz":14074,"comment":"","raw_payload":{}},

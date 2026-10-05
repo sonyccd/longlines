@@ -1,3 +1,5 @@
+import type { ModeFamily } from "./modes.ts";
+
 export type Source = "pota" | "sotawatch";
 
 /** A JSON object as received from an upstream feed. Fields are validated at use. */
@@ -17,6 +19,7 @@ export interface NormalizedSpot {
   frequency_khz: number;
   band: string | null;
   mode: string | null;
+  mode_family: ModeFamily | null;
   comment: string;
   pota_reference: string | null;
   pota_park_name: string | null;

@@ -17,7 +17,6 @@ import { contentHash } from "./hash.ts";
 import { fetchJson } from "./http.ts";
 import {
   cleanCallsign,
-  cleanMode,
   cleanPotaComment,
   cleanPotaSpotter,
   isTestComment,
@@ -25,6 +24,7 @@ import {
   parseKhz,
   parseUtc,
 } from "./normalize.ts";
+import { modeFamily, resolveMode } from "./modes.ts";
 import type { JsonObject, NormalizeResult, SourceAdapter } from "./types.ts";
 
 export const POTA_SPOTS_URL = "https://api.pota.app/spot/activator";
@@ -85,6 +85,8 @@ export const pota: SourceAdapter = {
 
     const frequencyKhz = parseKhz(raw["frequency"], "khz");
 
+    const mode = resolveMode(optionalString(raw["mode"]), comment);
+
     return {
       kind: "spot",
       spot: {
@@ -96,7 +98,8 @@ export const pota: SourceAdapter = {
         spotter: cleanPotaSpotter(optionalString(raw["spotter"])),
         frequency_khz: frequencyKhz,
         band: bandForFrequency(frequencyKhz),
-        mode: cleanMode(optionalString(raw["mode"])),
+        mode,
+        mode_family: modeFamily(mode),
         comment,
         pota_reference: optionalString(raw["reference"]),
         pota_park_name: optionalString(raw["name"]),

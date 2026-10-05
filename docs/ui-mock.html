@@ -100,7 +100,8 @@ const DEST_TYPES = [
 ];
 
 const BANDS = ["160m","80m","60m","40m","30m","20m","17m","15m","12m","10m","6m","2m","70cm"];
-const MODES = ["cw","ssb","fm","am","ft8","ft4","rtty","psk"];
+const MODES = ["digital","cw","ssb","fm","am","ft8","ft4","rtty","psk"];
+const modeLabel = (m) => m === "digital" ? "Any digital" : m.toUpperCase();
 
 const initialDests = [
   { id: "d1", type: "discord", name: "RARS #pota-spots", target: "https://discord.com/api/webhooks/1182…/xY9", health: "ok" },
@@ -354,8 +355,8 @@ function SubscriptionDialog({ open, initial, dests, onClose, onSave, fullScreen 
               </FormControl>
               <Autocomplete multiple options={BANDS} value={sub.bands} onChange={(e, v) => set("bands", v)}
                 renderInput={(p) => <TextField {...p} label="Bands" placeholder="Any band" />} />
-              <Autocomplete multiple options={MODES} value={sub.modes} onChange={(e, v) => set("modes", v)} getOptionLabel={(o) => o.toUpperCase()}
-                renderInput={(p) => <TextField {...p} label="Modes" placeholder="Any mode" />} />
+              <Autocomplete multiple options={MODES} value={sub.modes} onChange={(e, v) => set("modes", v)} getOptionLabel={modeLabel}
+                renderInput={(p) => <TextField {...p} label="Modes" placeholder="Any mode" helperText="SOTAwatch reports every digital mode as DATA. Choose Any digital to include those spots." />} />
               <Autocomplete multiple freeSolo options={[]} value={sub.callsigns} onChange={(e, v) => set("callsigns", v.map(x => x.toUpperCase().trim()))}
                 renderInput={(p) => <TextField {...p} label="Callsigns" placeholder="Type a call and press Enter" helperText="Leave empty to match any station." />} />
               <TextField label="Park, summit, or location contains" value={sub.reference} onChange={e => set("reference", e.target.value)}
@@ -430,7 +431,7 @@ function filterChips(sub) {
   const chips = [];
   chips.push(sub.sources.length ? sub.sources.map(srcName).join(", ") : "All sources");
   if (sub.bands.length) chips.push(sub.bands.join(", "));
-  if (sub.modes.length) chips.push(sub.modes.map(m => m.toUpperCase()).join(", "));
+  if (sub.modes.length) chips.push(sub.modes.map(modeLabel).join(", "));
   if (sub.callsigns.length) chips.push(sub.callsigns.join(", "));
   if (sub.reference) chips.push(`Ref contains ${sub.reference}`);
   if (sub.quiet) chips.push(`Once per ${sub.quiet} min`);

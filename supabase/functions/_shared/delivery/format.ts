@@ -80,6 +80,7 @@ export function sampleSpot(destination: DeliveryDestination): DeliverySpot {
     frequency_khz: 14062,
     band: "20m",
     mode: "cw",
+    mode_family: "cw",
     comment: `Test spot from Long Lines for "${destination.name}". Not a real activation.`,
     pota_reference: "US-0000",
     pota_park_name: "Test Park",

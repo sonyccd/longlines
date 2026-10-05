@@ -19,7 +19,6 @@ import { contentHash } from "./hash.ts";
 import { fetchJson, fetchText } from "./http.ts";
 import {
   cleanCallsign,
-  cleanMode,
   cleanSotaComment,
   cleanSotaSpotter,
   isTestComment,
@@ -27,6 +26,7 @@ import {
   parseKhz,
   parseUtc,
 } from "./normalize.ts";
+import { modeFamily, resolveMode } from "./modes.ts";
 import type { JsonObject, NormalizeResult, SourceAdapter } from "./types.ts";
 
 export const SOTAWATCH_EPOCH_URL = "https://api-db2.sota.org.uk/api/spots/epoch";
@@ -104,6 +104,8 @@ export const sotawatch: SourceAdapter = {
 
     const frequencyKhz = parseKhz(raw["frequency"], "mhz");
 
+    const mode = resolveMode(optionalString(raw["mode"]), comment);
+
     return {
       kind: "spot",
       spot: {
@@ -115,7 +117,8 @@ export const sotawatch: SourceAdapter = {
         spotter: cleanSotaSpotter(optionalString(raw["callsign"]), comment),
         frequency_khz: frequencyKhz,
         band: bandForFrequency(frequencyKhz),
-        mode: cleanMode(optionalString(raw["mode"])),
+        mode,
+        mode_family: modeFamily(mode),
         comment,
         pota_reference: null,
         pota_park_name: null,
