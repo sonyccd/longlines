@@ -60,7 +60,11 @@ as $$
 $$;
 
 -- recent_spots: mode_family sits next to mode. "create or replace view" can
--- only append columns, so recreate it and restore its grants.
+-- only append columns, so recreate it. A new view picks up the default
+-- privileges, which grant everything to anon and authenticated, and a simple
+-- definer view is auto-updatable, so revoke from both before granting read
+-- access. (0005 only revoked from anon, which left clients able to write
+-- raw_spots through the view.)
 drop view recent_spots;
 create view recent_spots as
 select
@@ -69,7 +73,7 @@ select
 from raw_spots
 where spot_time > now() - interval '24 hours';
 
-revoke all on recent_spots from anon;
+revoke all on recent_spots from anon, authenticated;
 grant select on recent_spots to authenticated;
 
 -- spot_matches: a mode filter value matches the mode or its family.
