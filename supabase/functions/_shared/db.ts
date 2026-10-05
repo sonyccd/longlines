@@ -57,5 +57,11 @@ export function createIngestDb(client: SupabaseClient): IngestDb {
       });
       if (error) throw new Error(`record_ingest_failure failed: ${error.message}`);
     },
+
+    async matchPendingSpots(): Promise<number> {
+      const { data, error } = await client.rpc("match_pending_spots");
+      if (error) throw new Error(`match_pending_spots failed: ${error.message}`);
+      return typeof data === "number" ? data : 0;
+    },
   };
 }
