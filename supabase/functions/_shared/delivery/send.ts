@@ -36,6 +36,13 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// Redirects are never followed: a safe public hostname could otherwise send
+// us to an internal address after the URL check. With redirect: "manual" the
+// runtime reports the 3xx itself (status 0 "opaqueredirect" in some runtimes).
+function isRedirect(response: Response): boolean {
+  return response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400);
+}
+
 export async function sendDiscord(
   destination: DeliveryDestination,
   deliveries: readonly PendingDelivery[],
@@ -70,9 +77,18 @@ export async function sendDiscord(
         headers: { "Content-Type": "application/json", "User-Agent": USER_AGENT },
         body: JSON.stringify(message),
         signal: AbortSignal.timeout(DISCORD_TIMEOUT_MS),
+        redirect: "manual",
       });
     } catch (error) {
       return { ok: false, sent, error: `Discord request failed: ${errorMessage(error)}` };
+    }
+    if (isRedirect(response)) {
+      await response.body?.cancel();
+      return {
+        ok: false,
+        sent,
+        error: `Discord redirected (HTTP ${response.status}); redirects are not followed`,
+      };
     }
     if (response.status === 429) {
       const retryAfter = await retryAfterSecondsOf(response);
@@ -142,11 +158,19 @@ export async function sendWebhook(
         },
         body,
         signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
+        redirect: "manual",
       });
     } catch (error) {
       return { ok: false, sent, error: `Webhook request failed: ${errorMessage(error)}` };
     }
     await response.body?.cancel();
+    if (isRedirect(response)) {
+      return {
+        ok: false,
+        sent,
+        error: `Webhook redirected (HTTP ${response.status}); redirects are not followed`,
+      };
+    }
     if (!response.ok) {
       return { ok: false, sent, error: `Webhook HTTP ${response.status}` };
     }

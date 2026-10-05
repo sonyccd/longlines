@@ -128,6 +128,8 @@ export const defaultResolver: Resolver = async (host) => {
 /**
  * Refuse a hostname that resolves to any private address. IP literals were
  * already judged by assertSafeDestinationUrl and are not resolved again.
+ * Fails closed when the runtime cannot resolve DNS at all; the destination's
+ * last_error then says so.
  */
 export async function assertSafeResolvedHost(
   host: string,
@@ -136,8 +138,8 @@ export async function assertSafeResolvedHost(
   if (isIpLiteral(host)) return;
   const addresses = await resolve(host);
   if (addresses === null) {
-    console.warn(`urlsafety: DNS resolution unavailable, skipping rebinding check for ${host}`);
-    return;
+    // Fail closed: without DNS we cannot rule out a private address.
+    throw new Error("DNS resolution is unavailable in this runtime; webhook not sent");
   }
   if (addresses.length === 0) throw new Error(`${host} did not resolve`);
   if (addresses.some(isPrivateIp)) throw new Error(`${host} resolves to a private address`);

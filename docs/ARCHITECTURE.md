@@ -232,7 +232,11 @@ change together: `mark_deliveries_sent`, `mark_deliveries_failed` (backoff via
 Outbound URL safety is checked twice: in SQL when the destination is created
 and in the worker before each request, which also resolves the hostname and
 refuses private addresses so a DNS change after creation cannot turn a
-webhook into an internal request.
+webhook into an internal request. Redirects are never followed, and if the
+runtime cannot resolve DNS the worker refuses to send rather than guess. What
+remains is the window between resolving and connecting (classic rebinding),
+which `fetch` cannot close without a custom dialer; the DNS check, the private
+range refusal and the 10 s timeout keep that window small.
 
 `send-test` reuses the same formatting and sending code for one labeled
 sample spot.
