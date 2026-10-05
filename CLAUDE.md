@@ -67,9 +67,8 @@ Local invocation: `curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota 
 
 `.github/workflows/ci.yml` runs on every PR and push to main: Deno fmt/lint/check/test, then
 `supabase db start` + `supabase db lint` + `scripts/smoke-test.sql` on a fresh Postgres.
-`.github/workflows/claude-review.yml` posts a Claude Code review on PRs; it needs the
-`ANTHROPIC_API_KEY` repository secret. Migrations already applied to the hosted project must not
-be edited; add a new migration instead (see `20261005000009_*`).
+Migrations already applied to the hosted project must not be edited; add a new migration instead
+(see `20261005000009_*`).
 
 ## Phase 2 schema rules
 
