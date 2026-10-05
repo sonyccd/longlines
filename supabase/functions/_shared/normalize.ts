@@ -57,10 +57,14 @@ export function isTestComment(comment: string): boolean {
   return TEST_COMMENT.test(comment);
 }
 
+// raw_spots.frequency_khz is numeric(12,3); anything from 1e9 kHz up would
+// overflow it and fail the whole batch instead of just this spot.
+const MAX_KHZ = 1_000_000_000;
+
 /**
  * Parse an upstream frequency into kHz rounded to 3 decimals.
  * Accepts a string or number in the given unit. Throws when missing,
- * non-numeric, or not positive.
+ * non-numeric, not positive, or too large for the database column.
  */
 export function parseKhz(value: unknown, unit: "khz" | "mhz"): number {
   const n = typeof value === "number"
@@ -71,8 +75,11 @@ export function parseKhz(value: unknown, unit: "khz" | "mhz"): number {
   if (!Number.isFinite(n) || n <= 0) {
     throw new Error(`invalid frequency: ${JSON.stringify(value)}`);
   }
-  const khz = unit === "mhz" ? n * 1000 : n;
-  return Math.round(khz * 1000) / 1000;
+  const khz = Math.round((unit === "mhz" ? n * 1000 : n) * 1000) / 1000;
+  if (khz >= MAX_KHZ) {
+    throw new Error(`frequency out of range: ${JSON.stringify(value)} ${unit}`);
+  }
+  return khz;
 }
 
 /**

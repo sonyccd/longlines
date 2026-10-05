@@ -89,6 +89,13 @@ Deno.test("parseKhz throws on missing, non-numeric or non-positive input", () =>
   assertThrows(() => parseKhz(-7, "mhz"));
 });
 
+Deno.test("parseKhz rejects frequencies the database cannot store", () => {
+  // raw_spots.frequency_khz is numeric(12,3): anything from 1e9 kHz up overflows it.
+  assertThrows(() => parseKhz("1234567890123", "khz"));
+  assertThrows(() => parseKhz(1e6, "mhz"));
+  assertEquals(parseKhz(999999999.999, "khz"), 999999999.999);
+});
+
 Deno.test("parseUtc treats a timestamp without offset as UTC", () => {
   assertEquals(parseUtc("2026-10-05T13:37:03").toISOString(), "2026-10-05T13:37:03.000Z");
 });
