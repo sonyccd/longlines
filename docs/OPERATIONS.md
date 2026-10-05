@@ -219,6 +219,20 @@ project.
 A daily job (`housekeeping`, 03:00 UTC) deletes deliveries and archived queue
 messages older than 7 days and sign-in attempts older than a day.
 
+### Stats snapshot
+
+An hourly job (`refresh-stats-snapshot`, five past every hour) runs `refresh_stats_snapshot()`,
+which inserts one `stats_snapshots` row for the last seven complete UTC days and prunes the table
+to 48 rows. The Stats page shows the newest row; on a fresh project it shows "Not enough data yet"
+until the first run. To refresh by hand:
+
+```sql
+select refresh_stats_snapshot();
+select generated_at, payload->'totals' from stats_snapshots order by generated_at desc limit 1;
+```
+
+`cron.job_run_details` shows failed runs under that job name.
+
 ## Web app on Vercel
 
 Create a Vercel project from the GitHub repo with these settings:

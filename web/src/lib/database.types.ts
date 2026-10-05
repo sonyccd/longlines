@@ -138,6 +138,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"stats_snapshots": {
+                  Row: {
+                    "generated_at": string,"id": number,"payload": NonNullable<Json>,"window_end": string,"window_start": string
+                  }
+                  Insert: {
+                    "generated_at"?: string,"id"?: number,"payload": NonNullable<Json>,"window_end": string,"window_start": string
+                  }
+                  Update: {
+                    "generated_at"?: string,"id"?: number,"payload"?: NonNullable<Json>,"window_end"?: string,"window_start"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"subscription_destinations": {
                   Row: {
                     "destination_id": string,"subscription_id": string
@@ -291,6 +304,9 @@ isOneToOne: false
                            },
 "record_sign_in_attempt":
 { Args: { "p_identifier": string }; Returns: number
+                           },
+"refresh_stats_snapshot":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "rotate_signing_secret":
 { Args: { "p_destination_id": string }; Returns: string
