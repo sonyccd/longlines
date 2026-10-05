@@ -68,6 +68,14 @@ Deno.test("assertSafeResolvedHost refuses hosts that resolve to private addresse
   await assertRejects(() => assertSafeResolvedHost("nowhere.example.com", resolver([])));
 });
 
+Deno.test("assertSafeResolvedHost fails closed when the runtime cannot resolve DNS", async () => {
+  await assertRejects(
+    () => assertSafeResolvedHost("shack.example.com", () => Promise.resolve(null)),
+    Error,
+    "DNS",
+  );
+});
+
 Deno.test("assertSafeResolvedHost skips resolution for IP literals already checked", async () => {
   let called = false;
   await assertSafeResolvedHost("93.184.216.34", () => {

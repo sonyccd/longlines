@@ -166,6 +166,46 @@ Deno.test("sendWebhook treats non-2xx as failure with the status in the error", 
   );
 });
 
+Deno.test("sendWebhook does not follow redirects and reports them as failures", async () => {
+  let followed = false;
+  await withServer(
+    (req) => {
+      if (new URL(req.url).pathname === "/elsewhere") {
+        followed = true;
+        return new Response("ok");
+      }
+      return new Response(null, { status: 302, headers: { Location: "/elsewhere" } });
+    },
+    async (base) => {
+      const d = dest(`${base}/spots`, "webhook");
+      const result = await sendWebhook(d, [delivery(1, d)], { allowInsecure: true });
+      assertEquals(result.ok, false);
+      assertEquals(followed, false);
+      assertMatch(result.error ?? "", /redirect/i);
+    },
+  );
+});
+
+Deno.test("sendDiscord does not follow redirects", async () => {
+  let followed = false;
+  await withServer(
+    (req) => {
+      if (new URL(req.url).pathname === "/elsewhere") {
+        followed = true;
+        return new Response(null, { status: 204 });
+      }
+      return new Response(null, { status: 301, headers: { Location: "/elsewhere" } });
+    },
+    async (base) => {
+      const d = dest(`${base}/api/webhooks/1/abc`, "discord");
+      const result = await sendDiscord(d, [delivery(1, d)], { allowInsecure: true });
+      assertEquals(result.ok, false);
+      assertEquals(followed, false);
+      assertMatch(result.error ?? "", /redirect/i);
+    },
+  );
+});
+
 Deno.test("sendWebhook refuses an unsafe destination before connecting", async () => {
   let called = false;
   await withServer(

@@ -44,8 +44,9 @@ X-LongLines-Signature: sha256=3f1c…
 `spot` has the same fields as the `recent_spots` view. `delivery_id` is unique
 per spot and destination, so you can use it to deduplicate retries.
 
-Respond with any `2xx` status within 10 seconds. Anything else, including a
-timeout, is a failure: the batch is retried with backoff (30 s, 1 m, 2 m, 5 m,
+Respond with any `2xx` status within 10 seconds. Redirects are never followed,
+so a `3xx` counts as a failure; point the destination at the final URL.
+Anything else, including a timeout, is a failure: the batch is retried with backoff (30 s, 1 m, 2 m, 5 m,
 15 m, then every 30 m) for up to 24 hours, after which it is dropped. Five
 consecutive failures mark the destination "Failing" in the app; the next
 success clears it.
