@@ -27,6 +27,8 @@ supabase db reset             # re-apply migrations from scratch locally
 supabase functions serve      # serve both functions against the local stack
 docker exec -i supabase_db_longlines psql -U postgres   # psql is not installed; use the container
 
+psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/smoke-test.sql   # schema smoke test, also run by CI
+
 supabase db push                       # hosted: apply migrations
 supabase functions deploy ingest-pota  # hosted: deploy one function
 ```
@@ -45,14 +47,22 @@ Local invocation: `curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota 
 - `IngestDb` (`types.ts`) is the only database surface the orchestrator sees. `db.ts` implements
   it over supabase-js; tests use an in-memory fake.
 - All writes go through security-definer RPCs in `supabase/migrations/*_ingest_functions.sql`.
-  `ingest_spots(jsonb)` does the batch insert with `ON CONFLICT DO NOTHING RETURNING` and
-  `pgmq.send_batch` in one transaction. It is plpgsql with `#variable_conflict use_column`
-  because the output columns share names with `raw_spots` columns.
+  `ingest_spots(jsonb)` is one SQL statement: a data-modifying CTE does the insert with
+  `ON CONFLICT DO NOTHING RETURNING`, and a second CTE calls `pgmq.send_batch`. The second CTE
+  is cross-joined into the result on purpose; an unreferenced CTE would never run.
 - Dedup is the unique constraint `(source, source_spot_id, content_hash)`. The hash field order
   per source is fixed (see `ARCHITECTURE.md`); changing it would make every existing spot look
   new on the next run.
 - Cron jobs read the project URL and service-role key from Vault
   (`scripts/setup-db-settings.sql` creates them once). Migrations never contain secrets.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every PR and push to main: Deno fmt/lint/check/test, then
+`supabase db start` + `supabase db lint` + `scripts/smoke-test.sql` on a fresh Postgres.
+`.github/workflows/claude-review.yml` posts a Claude Code review on PRs; it needs the
+`ANTHROPIC_API_KEY` repository secret. Migrations already applied to the hosted project must not
+be edited; add a new migration instead (see `20261005000009_*`).
 
 ## Conventions
 
