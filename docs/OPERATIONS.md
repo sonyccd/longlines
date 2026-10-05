@@ -44,7 +44,10 @@ Work down the chain.
    curl -X POST https://<PROJECT_REF>.supabase.co/functions/v1/ingest-pota \
      -H "Authorization: Bearer <SERVICE_ROLE_KEY>"
    ```
-4. Did the function run and simply skip everything? The response body's `skipped.too_old` counter
+4. `ingest_state.last_error` says `numeric field overflow`? That was
+   `raw_spots.frequency_khz` at `numeric(10,3)` rejecting 10 GHz spots; migration
+   `20261006000012` widened it. Make sure `supabase db push` has run.
+5. Did the function run and simply skip everything? The response body's `skipped.too_old` counter
    is high when the upstream feed only had old spots (quiet band, or the function was down and is
    catching up). That is normal.
 
