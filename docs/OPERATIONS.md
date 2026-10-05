@@ -221,9 +221,13 @@ Create a Vercel project from the GitHub repo with these settings:
 
 - Root directory: `web`
 - Framework preset: Vite (build `npm run build`, output `dist`)
-- Environment variables (Production and Preview): `VITE_SUPABASE_URL` and
-  `VITE_SUPABASE_ANON_KEY` from the Supabase project's API settings. Only the
-  anon (publishable) key; never the service-role key.
+- Environment variables: with the Supabase ↔ Vercel integration enabled, the
+  project receives `SUPABASE_URL`, `SUPABASE_ANON_KEY` (plus `NEXT_PUBLIC_`
+  copies and the service-role key) automatically. `web/vite.config.ts` maps
+  only the URL and the anon key onto the `VITE_` names the app reads; the
+  service-role key is never read and never reaches the bundle. Without the
+  integration, set `SUPABASE_URL` and `SUPABASE_ANON_KEY` (or the `VITE_`
+  names) by hand.
 - Domain: `app.longlines.io`
 
 `web/vercel.json` rewrites every path to `index.html` so client-side routes
