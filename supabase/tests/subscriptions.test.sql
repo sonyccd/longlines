@@ -1,0 +1,54 @@
+-- pgTAP: subscriptions, save/delete RPCs, destination links, RLS.
+begin;
+create extension if not exists pgtap with schema extensions;
+\ir helpers/users.psql
+select plan(17);
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
+create temp table da as select * from create_destination('discord', 'A discord', 'https://discord.com/api/webhooks/1/a');
+create temp table db as select * from create_destination('webhook', 'A hook', 'https://hooks.example.com/a');
+
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
+create temp table dz as select * from create_destination('discord', 'B discord', 'https://discord.com/api/webhooks/2/b');
+
+-- Create.
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
+create temp table s1 as select save_subscription(jsonb_build_object(
+  'name', 'NC parks', 'sources', array['pota'], 'bands', '{}'::text[], 'modes', array['CW', 'ssb'],
+  'callsigns', array[' kk4pwj ', 'w1aw'], 'reference', 'us-nc', 'quiet_minutes', 10,
+  'destinations', array[(select id from da), (select id from db)])) as id;
+
+select is((select count(*) from subscriptions), 1::bigint, 'subscription created');
+select is((select modes from subscriptions), array['cw', 'ssb'], 'modes are lowercased');
+select is((select callsigns from subscriptions), array['KK4PWJ', 'W1AW'], 'callsigns are uppercased and trimmed');
+select is((select reference from subscriptions), 'us-nc', 'reference stored as typed');
+select is((select count(*) from subscription_destinations where subscription_id = (select id from s1)), 2::bigint, 'both destinations linked');
+
+-- Update replaces the links and keeps the id.
+select is(save_subscription(jsonb_build_object('id', (select id from s1), 'name', 'NC parks v2', 'enabled', false,
+  'sources', '{}'::text[], 'bands', array['20m'], 'modes', '{}'::text[], 'callsigns', '{}'::text[], 'reference', '',
+  'quiet_minutes', 0, 'destinations', array[(select id from db)])), (select id from s1), 'update returns the same id');
+select is((select name from subscriptions), 'NC parks v2', 'update changed the name');
+select is((select enabled from subscriptions), false, 'update changed enabled');
+select is((select array_agg(destination_id) from subscription_destinations), array[(select id from db)], 'update replaced the links');
+
+-- Validation.
+select throws_ok(format($f$ select save_subscription('{"name":"x","destinations":["%s"]}') $f$, (select id from dz)),
+  'P0001', 'Destination not found.', 'cannot link another user''s destination');
+select throws_ok($$ select save_subscription('{"name":"x","destinations":[]}') $$, 'P0001', 'Pick at least one destination.', 'needs a destination');
+select throws_ok(format($f$ select save_subscription('{"name":" ","destinations":["%s"]}') $f$, (select id from db)),
+  'P0001', 'Give the subscription a name.', 'needs a name');
+select throws_ok(format($f$ select save_subscription('{"name":"x","quiet_minutes":7,"destinations":["%s"]}') $f$, (select id from db)),
+  '23514', null, 'quiet_minutes must be one of the allowed values');
+
+-- A destination in use cannot be deleted.
+select throws_ok(format('delete from destinations where id = %L', (select id from db)), '23503', null, 'destination in use is protected');
+select lives_ok(format('delete from destinations where id = %L', (select id from da)), 'unused destination can be deleted');
+
+-- Other user sees nothing and cannot delete.
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
+select is((select count(*) from subscriptions), 0::bigint, 'other user sees no subscriptions');
+select throws_ok(format('select delete_subscription(%L)', (select id from s1)), 'P0001', 'Subscription not found.', 'other user cannot delete');
+
+select * from finish();
+rollback;

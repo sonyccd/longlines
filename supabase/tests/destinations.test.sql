@@ -1,0 +1,56 @@
+-- pgTAP: destinations, URL validation, secret handling, RLS and column grants.
+begin;
+create extension if not exists pgtap with schema extensions;
+\ir helpers/users.psql
+select plan(28);
+
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
+
+-- Discord destination.
+create temp table d1 as
+  select * from create_destination('discord', 'Club', 'https://discord.com/api/webhooks/1182334455/xY9abcTOKEN');
+select is((select type from d1), 'discord', 'discord destination created');
+select is((select url_display from d1), 'https://discord.com/api/webhooks/1182…/xY9', 'discord url is masked for display');
+select is((select signing_secret from d1), null, 'discord destination has no signing secret');
+select is((select health from d1), 'ok', 'new destination is healthy');
+
+-- Webhook destination.
+create temp table d2 as
+  select * from create_destination('webhook', 'Shack', 'https://shack.example.com:8443/spots?x=1');
+select matches((select signing_secret from d2), '^whsec_[0-9a-f]{48}$', 'webhook gets a signing secret');
+select is((select url_display from d2), 'https://shack.example.com:8443/spots', 'webhook display drops the query string');
+
+-- Validation.
+select throws_ok($$ select create_destination('discord', 'x', 'http://discord.com/api/webhooks/1/2') $$, 'P0001', 'Use an https URL.', 'rejects http');
+select throws_ok($$ select create_destination('discord', 'x', 'https://evil.com/api/webhooks/1/2') $$, 'P0001', 'Use a Discord webhook URL.', 'rejects non-discord host');
+select throws_ok($$ select create_destination('discord', 'x', 'https://discord.com/other/1/2') $$, 'P0001', 'Use a Discord webhook URL.', 'rejects wrong discord path');
+select lives_ok($$ select create_destination('discord', 'x', 'https://discordapp.com/api/webhooks/1/2') $$, 'accepts discordapp.com');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://localhost/spots') $$, 'P0001', 'That address is not allowed.', 'rejects localhost');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://10.0.0.5/spots') $$, 'P0001', 'That address is not allowed.', 'rejects 10/8');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://172.16.4.4:8080/spots') $$, 'P0001', 'That address is not allowed.', 'rejects 172.16/12');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://192.168.1.1/spots') $$, 'P0001', 'That address is not allowed.', 'rejects 192.168/16');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://127.0.0.1/spots') $$, 'P0001', 'That address is not allowed.', 'rejects loopback');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://169.254.169.254/latest') $$, 'P0001', 'That address is not allowed.', 'rejects link-local');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://100.64.0.1/spots') $$, 'P0001', 'That address is not allowed.', 'rejects CGNAT');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://[::1]/spots') $$, 'P0001', 'That address is not allowed.', 'rejects IPv6 loopback');
+select throws_ok($$ select create_destination('webhook', 'x', 'https://[fd12::1]/spots') $$, 'P0001', 'That address is not allowed.', 'rejects IPv6 ULA');
+select throws_ok($$ select create_destination('webhook', 'x', 'not a url') $$, 'P0001', 'Use an https URL.', 'rejects garbage');
+select throws_ok($$ select create_destination('email', 'x', 'https://example.com') $$, 'P0001', 'Unknown destination type.', 'rejects unknown type');
+
+-- Secrets are not readable through the table, even by the owner.
+select throws_ok($$ select url from destinations $$, '42501', null, 'url column is not selectable');
+select throws_ok($$ select signing_secret from destinations $$, '42501', null, 'signing_secret column is not selectable');
+select is((select count(*) from destinations), 3::bigint, 'owner sees their destinations through allowed columns');
+select throws_ok($$ insert into destinations (user_id, type, name, url, url_display) values (auth.uid(), 'webhook', 'x', 'https://e.com', 'e') $$,
+  '42501', null, 'direct insert is not allowed');
+
+-- Rotation returns a fresh secret once.
+select isnt(rotate_signing_secret((select id from d2)), (select signing_secret from d2), 'rotate returns a new secret');
+
+-- Another user sees nothing and cannot rotate.
+select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
+select is((select count(*) from destinations), 0::bigint, 'other user sees no destinations');
+select throws_ok(format('select rotate_signing_secret(%L)', (select id from d2)), 'P0001', 'Destination not found.', 'other user cannot rotate');
+
+select * from finish();
+rollback;

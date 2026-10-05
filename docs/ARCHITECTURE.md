@@ -100,3 +100,78 @@ job. POTA runs on the standard `* * * * *`.
 There is no RLS and no user-facing API in Phase 1. The tables, view and RPCs have their default
 PostgREST grants revoked from `anon` and `authenticated`, so only the service role (and the
 `postgres` user in Studio) can read or write them.
+
+# Phase 2: accounts, destinations, subscriptions
+
+```mermaid
+flowchart LR
+  subgraph client
+    WEB[web app]
+  end
+  subgraph supabase
+    AUTH[Supabase Auth]
+    SI[sign-in fn]
+    DA[delete-account fn]
+    P[(profiles)]
+    D[(destinations)]
+    S[(subscriptions)]
+    SD[(subscription_destinations)]
+    RS[recent_spots view]
+    H[ingest_health view]
+  end
+  WEB -- signUp / reset / updateUser --> AUTH
+  WEB -- identifier + password --> SI --> AUTH
+  WEB -- JWT --> DA --> AUTH
+  AUTH -- insert trigger --> P
+  WEB -- RPC create_destination --> D
+  WEB -- RPC save_subscription --> S --> SD --> D
+  WEB -- select --> RS
+  WEB -- select --> H
+```
+
+## Accounts
+
+Supabase Auth owns credentials. `profiles` holds the callsign, name and display
+preferences and is created by a trigger on `auth.users` from the sign-up
+metadata; a bad or taken callsign makes the trigger raise, so the sign-up
+fails instead of leaving a user without a profile. `callsign_available()` is
+the only anonymous RPC and reveals nothing but a boolean.
+
+Signing in with a callsign goes through the `sign-in` Edge Function. It resolves
+the callsign to an email with a service-role-only SQL function, calls
+`signInWithPassword` server side, and returns the session tokens. The error
+message is the same for an unknown identifier and a wrong password, unknown
+identifiers still pay for a password check, and attempts are logged in
+`sign_in_attempts` so the eleventh attempt per identifier in fifteen minutes is
+refused.
+
+## Destinations
+
+A Discord webhook URL is a credential. `destinations.url` and
+`destinations.signing_secret` are omitted from the column grant, so no client
+query can read them; `create_destination()` validates the URL, stores the
+masked `url_display`, and returns the signing secret exactly once.
+`rotate_signing_secret()` issues a replacement.
+
+URL rules, enforced in SQL and repeated by the delivery worker: https only;
+Discord hosts must be `discord.com` or `discordapp.com` with an
+`/api/webhooks/` path; webhook hosts may not be `localhost` or an IP literal in
+a private, loopback, link-local, CGNAT, unspecified or IPv4-mapped range.
+
+## Subscriptions
+
+`save_subscription(jsonb)` writes the subscription and replaces its destination
+links in one transaction and refuses destinations the caller does not own.
+`subscription_destinations.destination_id` is `on delete restrict`, which is
+what makes a destination in use undeletable. Filters are arrays where empty
+means "any"; modes are stored lowercase and callsigns uppercase.
+
+## What clients can read
+
+- `recent_spots`: the last 24 hours of `raw_spots` without `raw_payload`
+  (definer view; the table itself stays unreadable).
+- `ingest_health`: made a definer view so the Sources page can show it.
+- Their own `profiles`, `destinations` (safe columns), `subscriptions` and
+  links, through RLS.
+
+`deliveries`, `subscription_quiet` and `sign_in_attempts` are service-role only.

@@ -112,3 +112,51 @@ select msg_id, enqueued_at, message from pgmq.q_spot_events order by msg_id desc
 ```
 
 Nothing consumes the queue in Phase 1, so `queue_length` grows with `total_messages`.
+
+# Phase 2
+
+## Supabase Auth settings (dashboard, once)
+
+Authentication → URL configuration:
+
+- Site URL: `https://app.longlines.io`
+- Redirect URLs: `https://app.longlines.io`, `https://app.longlines.io/set-password`
+  (add `http://localhost:5173` and `http://localhost:5173/set-password` for local
+  development against the hosted project)
+
+Authentication → Providers → Email: enable "Confirm email". Leave signups on.
+
+Authentication → SMTP: configure a custom SMTP provider. Supabase's built-in
+mailer only delivers to members of your organization and is rate limited, so
+sign-up confirmations and password resets for real users will not arrive
+without it.
+
+## Edge Function deploys
+
+`sign-in` is public (`verify_jwt = false` in `config.toml`); the others require a
+user or service-role JWT. Deploy with:
+
+```sh
+supabase functions deploy sign-in
+supabase functions deploy delete-account
+```
+
+## Sign-in rate limiting
+
+`sign_in_attempts` logs every attempt. To see who is being throttled:
+
+```sql
+select identifier, count(*) from sign_in_attempts
+where attempted_at > now() - interval '15 minutes'
+group by 1 having count(*) >= 10;
+```
+
+Rows older than a day are deleted by the daily housekeeping job.
+
+## Database tests
+
+`supabase/tests/*.test.sql` are pgTAP suites that run against a fresh local
+database (`supabase db start` or `supabase start`, then `supabase test db`). CI
+runs them on every PR. `supabase/tests/helpers/users.psql` seeds two users and
+an `as_user(uuid)` helper that switches to the `authenticated` role with that
+user's JWT claims, which is how the RLS assertions work.
