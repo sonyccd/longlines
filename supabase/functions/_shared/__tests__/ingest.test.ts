@@ -1,0 +1,177 @@
+import { assertEquals, assertRejects } from "@std/assert";
+import { runIngest } from "../ingest.ts";
+import type {
+  IngestDb,
+  InsertedSpot,
+  JsonObject,
+  NormalizedSpot,
+  NormalizeResult,
+  Source,
+  SourceAdapter,
+  SpotFailure,
+} from "../types.ts";
+
+const NOW = new Date("2026-10-05T13:41:00Z");
+
+function spotFor(raw: JsonObject): NormalizedSpot {
+  return {
+    source: "pota",
+    source_spot_id: String(raw["id"]),
+    content_hash: "h".repeat(64),
+    spot_time: NOW.toISOString(),
+    callsign: "W1AW",
+    spotter: null,
+    frequency_khz: 14074,
+    band: "20m",
+    mode: "ft8",
+    comment: "",
+    pota_reference: null,
+    pota_park_name: null,
+    pota_location: null,
+    sota_summit_ref: null,
+    raw_payload: raw,
+  };
+}
+
+/** Adapter whose feed items declare how they should be handled. */
+function fakeAdapter(
+  feed: JsonObject[] | Error,
+  options: { epoch?: string; source?: Source } = {},
+): SourceAdapter & { fetchCount: number } {
+  const adapter: SourceAdapter & { fetchCount: number } = {
+    source: options.source ?? "pota",
+    fetchCount: 0,
+    fetchSpots(): Promise<unknown> {
+      adapter.fetchCount++;
+      return feed instanceof Error ? Promise.reject(feed) : Promise.resolve(feed);
+    },
+    parseFeed(body: unknown): JsonObject[] {
+      if (!Array.isArray(body)) throw new Error("bad shape");
+      return body as JsonObject[];
+    },
+    normalize(raw: JsonObject, _now: Date): Promise<NormalizeResult> {
+      if (raw["throws"]) return Promise.reject(new Error(`cannot process ${raw["id"]}`));
+      if (raw["skip"]) return Promise.resolve({ kind: "skip", reason: "too_old" });
+      return Promise.resolve({ kind: "spot", spot: spotFor(raw) });
+    },
+  };
+  if (options.epoch !== undefined) {
+    const epoch = options.epoch;
+    adapter.fetchEpoch = () => Promise.resolve(epoch);
+  }
+  return adapter;
+}
+
+function fakeDb(options: { lastEpoch?: string | null; insertAll?: boolean } = {}) {
+  const calls = {
+    ingested: [] as NormalizedSpot[][],
+    failures: [] as SpotFailure[][],
+    success: [] as Array<[Source, number, string | null]>,
+    failure: [] as Array<[Source, string]>,
+  };
+  const db: IngestDb = {
+    getLastEpoch: () => Promise.resolve(options.lastEpoch ?? null),
+    ingestSpots(spots) {
+      calls.ingested.push(spots);
+      // Simulate the unique constraint dropping every second spot unless insertAll.
+      const kept = options.insertAll === false ? spots.filter((_, i) => i % 2 === 0) : spots;
+      const rows: InsertedSpot[] = kept.map((s, i) => ({
+        id: i + 1,
+        source: s.source,
+        source_spot_id: s.source_spot_id,
+      }));
+      return Promise.resolve(rows);
+    },
+    recordSpotFailures(failures) {
+      calls.failures.push(failures);
+      return Promise.resolve();
+    },
+    recordSuccess(source, inserted, epoch) {
+      calls.success.push([source, inserted, epoch]);
+      return Promise.resolve();
+    },
+    recordFailure(source, error) {
+      calls.failure.push([source, error]);
+      return Promise.resolve();
+    },
+  };
+  return { db, calls };
+}
+
+Deno.test("runIngest inserts good spots, counts skips, and dead-letters bad ones", async () => {
+  const feed = [{ id: 1 }, { id: 2, skip: true }, { id: 3, throws: true }, { id: 4 }];
+  const { db, calls } = fakeDb();
+  const summary = await runIngest(fakeAdapter(feed), db, NOW);
+
+  assertEquals(summary.source, "pota");
+  assertEquals(summary.epoch_unchanged, false);
+  assertEquals(summary.fetched, 4);
+  assertEquals(summary.inserted, 2);
+  assertEquals(summary.skipped, { too_old: 1, test_comment: 0, not_normal: 0 });
+  assertEquals(summary.failed, 1);
+
+  assertEquals(calls.ingested.length, 1);
+  assertEquals(calls.ingested[0]?.map((s) => s.source_spot_id), ["1", "4"]);
+  assertEquals(calls.failures, [[{
+    source: "pota",
+    error: "cannot process 3",
+    raw_payload: { id: 3, throws: true },
+  }]]);
+  assertEquals(calls.success, [["pota", 2, null]]);
+  assertEquals(calls.failure, []);
+});
+
+Deno.test("runIngest reports the inserted count the database returned, not the batch size", async () => {
+  const { db, calls } = fakeDb({ insertAll: false });
+  const summary = await runIngest(fakeAdapter([{ id: 1 }, { id: 2 }, { id: 3 }]), db, NOW);
+  assertEquals(summary.inserted, 2);
+  assertEquals(calls.success, [["pota", 2, null]]);
+});
+
+Deno.test("runIngest skips the database insert and failure writes when there is nothing to write", async () => {
+  const { db, calls } = fakeDb();
+  const summary = await runIngest(fakeAdapter([{ id: 1, skip: true }]), db, NOW);
+  assertEquals(summary.inserted, 0);
+  assertEquals(calls.ingested, []);
+  assertEquals(calls.failures, []);
+  assertEquals(calls.success, [["pota", 0, null]]);
+});
+
+Deno.test("runIngest exits early when the upstream epoch is unchanged", async () => {
+  const adapter = fakeAdapter([{ id: 1 }], { epoch: "e1", source: "sotawatch" });
+  const { db, calls } = fakeDb({ lastEpoch: "e1" });
+  const summary = await runIngest(adapter, db, NOW);
+  assertEquals(summary.epoch_unchanged, true);
+  assertEquals(summary.fetched, 0);
+  assertEquals(adapter.fetchCount, 0);
+  assertEquals(calls.ingested, []);
+  assertEquals(calls.success, [["sotawatch", 0, "e1"]]);
+});
+
+Deno.test("runIngest fetches and stores the new epoch when it changed", async () => {
+  const adapter = fakeAdapter([{ id: 1 }], { epoch: "e2", source: "sotawatch" });
+  const { db, calls } = fakeDb({ lastEpoch: "e1" });
+  const summary = await runIngest(adapter, db, NOW);
+  assertEquals(summary.epoch_unchanged, false);
+  assertEquals(adapter.fetchCount, 1);
+  assertEquals(calls.success, [["sotawatch", 1, "e2"]]);
+});
+
+Deno.test("runIngest records a function-level failure when the upstream fetch fails", async () => {
+  const { db, calls } = fakeDb();
+  await assertRejects(
+    () => runIngest(fakeAdapter(new Error("ECONNRESET")), db, NOW),
+    Error,
+    "ECONNRESET",
+  );
+  assertEquals(calls.failure, [["pota", "ECONNRESET"]]);
+  assertEquals(calls.success, []);
+});
+
+Deno.test("runIngest records a function-level failure when the feed has the wrong shape", async () => {
+  const { db, calls } = fakeDb();
+  const adapter = fakeAdapter([]);
+  adapter.fetchSpots = () => Promise.resolve({ error: "maintenance" });
+  await assertRejects(() => runIngest(adapter, db, NOW), Error, "bad shape");
+  assertEquals(calls.failure, [["pota", "bad shape"]]);
+});

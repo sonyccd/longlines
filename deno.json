@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@std/assert": "jsr:@std/assert@1"
+  },
+  "tasks": {
+    "test": "deno test -P supabase/functions/_shared/__tests__/",
+    "check": "deno check supabase/functions/ingest-pota/index.ts supabase/functions/ingest-sotawatch/index.ts",
+    "lint": "deno lint supabase/functions",
+    "fmt": "deno fmt supabase/functions deno.json"
+  },
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended"
+      ]
+    }
+  },
+  "fmt": {
+    "lineWidth": 100
+  },
+  "permissions": {
+    "default": {
+      "net": [
+        "127.0.0.1"
+      ],
+      "env": [
+        "LONGLINES_USER_AGENT_URL"
+      ],
+      "read": [
+        "supabase/functions/_shared/__tests__/fixtures"
+      ]
+    }
+  }
+}

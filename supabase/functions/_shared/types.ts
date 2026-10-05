@@ -1,0 +1,82 @@
+export type Source = "pota" | "sotawatch";
+
+/** A JSON object as received from an upstream feed. Fields are validated at use. */
+export type JsonObject = Record<string, unknown>;
+
+/**
+ * One row to insert into raw_spots. Keys match the column names so the batch
+ * can be passed straight to the ingest_spots RPC.
+ */
+export interface NormalizedSpot {
+  source: Source;
+  source_spot_id: string;
+  content_hash: string;
+  spot_time: string; // ISO 8601 UTC
+  callsign: string;
+  spotter: string | null;
+  frequency_khz: number;
+  band: string | null;
+  mode: string | null;
+  comment: string;
+  pota_reference: string | null;
+  pota_park_name: string | null;
+  pota_location: string | null;
+  sota_summit_ref: string | null;
+  raw_payload: JsonObject;
+}
+
+/** Why a well-formed upstream spot was intentionally not stored. */
+export type SkipReason = "too_old" | "test_comment" | "not_normal";
+
+export type NormalizeResult =
+  | { kind: "spot"; spot: NormalizedSpot }
+  | { kind: "skip"; reason: SkipReason };
+
+/**
+ * A source adapter. parseFeed and normalize are pure so they can be tested
+ * against fixtures; fetchSpots (and fetchEpoch) do the network I/O.
+ */
+export interface SourceAdapter {
+  readonly source: Source;
+  fetchSpots(): Promise<unknown>;
+  /** Only sources with a cheap "anything new?" endpoint implement this. */
+  fetchEpoch?(): Promise<string>;
+  /** Validate the response body shape and return the spots in processing order. Throws on bad shape. */
+  parseFeed(body: unknown): JsonObject[];
+  /** Normalize one upstream spot. Throws when the spot cannot be processed. */
+  normalize(raw: JsonObject, now: Date): Promise<NormalizeResult>;
+}
+
+/** Response body returned by an ingest function. */
+export interface IngestSummary {
+  source: Source;
+  epoch_unchanged: boolean;
+  fetched: number;
+  inserted: number;
+  skipped: Record<SkipReason, number>;
+  failed: number;
+  duration_ms: number;
+}
+
+/** A row returned by the ingest_spots RPC: one per newly inserted spot. */
+export interface InsertedSpot {
+  id: number;
+  source: Source;
+  source_spot_id: string;
+}
+
+/** One unprocessable upstream spot, destined for ingest_failures. */
+export interface SpotFailure {
+  source: Source;
+  error: string;
+  raw_payload: JsonObject;
+}
+
+/** Database operations the orchestrator needs. Implemented by db.ts over supabase-js. */
+export interface IngestDb {
+  getLastEpoch(source: Source): Promise<string | null>;
+  ingestSpots(spots: NormalizedSpot[]): Promise<InsertedSpot[]>;
+  recordSpotFailures(failures: SpotFailure[]): Promise<void>;
+  recordSuccess(source: Source, inserted: number, epoch: string | null): Promise<void>;
+  recordFailure(source: Source, error: string): Promise<void>;
+}

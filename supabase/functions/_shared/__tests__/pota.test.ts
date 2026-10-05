@@ -1,0 +1,99 @@
+import { assertEquals, assertRejects, assertThrows } from "@std/assert";
+import { pota } from "../pota.ts";
+import { contentHash } from "../hash.ts";
+import type { JsonObject } from "../types.ts";
+
+const fixture = JSON.parse(
+  Deno.readTextFileSync(new URL("./fixtures/pota-activator.json", import.meta.url)),
+) as JsonObject[];
+
+// Fixture captured 2026-10-05 ~13:45Z; spot times range 13:16 to 13:44. Five-minute window from NOW.
+const NOW = new Date("2026-10-05T13:41:00Z");
+
+function spot(id: number): JsonObject {
+  const found = fixture.find((s) => s["spotId"] === id);
+  if (!found) throw new Error(`fixture has no spotId ${id}`);
+  return found;
+}
+
+Deno.test("pota.parseFeed returns the array as-is", () => {
+  assertEquals(pota.parseFeed(fixture).length, 5);
+});
+
+Deno.test("pota.parseFeed throws when the body is not an array of objects", () => {
+  assertThrows(() => pota.parseFeed({ error: "nope" }));
+  assertThrows(() => pota.parseFeed([1, 2]));
+});
+
+Deno.test("pota.normalize maps a fixture spot to the common schema", async () => {
+  const raw = spot(58161241);
+  const result = await pota.normalize(raw, NOW);
+  if (result.kind !== "spot") throw new Error(`expected spot, got skip ${result.reason}`);
+  const s = result.spot;
+  assertEquals(s.source, "pota");
+  assertEquals(s.source_spot_id, "58161241");
+  assertEquals(s.spot_time, "2026-10-05T13:37:03.000Z");
+  assertEquals(s.callsign, "DL/HB9JNH");
+  assertEquals(s.spotter, "OK1HRA");
+  assertEquals(s.frequency_khz, 10123.9);
+  assertEquals(s.band, "30m");
+  assertEquals(s.mode, "cw");
+  assertEquals(s.comment, "RBN 22 dB 19 WPM via OK1HRA-#");
+  assertEquals(s.pota_reference, "DE-0858");
+  assertEquals(s.pota_park_name, "Via Sancti Martini National Historic Trail");
+  assertEquals(s.pota_location, "DE-BW,DE-BY,DE-RP,DE-SL");
+  assertEquals(s.sota_summit_ref, null);
+  assertEquals(s.raw_payload, raw);
+});
+
+Deno.test("pota.normalize hashes spotTime, activator, reference, frequency, mode, comments", async () => {
+  const raw = spot(58161562);
+  const result = await pota.normalize(raw, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(
+    result.spot.content_hash,
+    await contentHash([
+      raw["spotTime"],
+      raw["activator"],
+      raw["reference"],
+      raw["frequency"],
+      raw["mode"],
+      raw["comments"],
+    ]),
+  );
+});
+
+Deno.test("pota.normalize skips spots older than five minutes", async () => {
+  assertEquals(await pota.normalize(spot(58159728), NOW), { kind: "skip", reason: "too_old" });
+});
+
+Deno.test("pota.normalize skips test spots", async () => {
+  const raw = { ...spot(58161562), comments: "just testing" };
+  assertEquals(await pota.normalize(raw, NOW), { kind: "skip", reason: "test_comment" });
+});
+
+Deno.test("pota.normalize stores an empty comment when upstream sends null", async () => {
+  const raw = { ...spot(58161562), comments: null };
+  const result = await pota.normalize(raw, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.comment, "");
+});
+
+Deno.test("pota.normalize leaves band null outside known bands", async () => {
+  const raw = { ...spot(58161562), frequency: "13999.0" };
+  const result = await pota.normalize(raw, NOW);
+  if (result.kind !== "spot") throw new Error("expected spot");
+  assertEquals(result.spot.band, null);
+});
+
+Deno.test("pota.normalize rejects a spot with no activator", async () => {
+  await assertRejects(() => pota.normalize({ ...spot(58161562), activator: null }, NOW));
+});
+
+Deno.test("pota.normalize rejects a spot with a malformed frequency", async () => {
+  await assertRejects(() => pota.normalize({ ...spot(58161562), frequency: "lots" }, NOW));
+});
+
+Deno.test("pota.normalize rejects a spot with no spotId", async () => {
+  await assertRejects(() => pota.normalize({ ...spot(58161562), spotId: undefined }, NOW));
+});
