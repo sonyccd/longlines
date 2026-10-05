@@ -111,6 +111,9 @@ be edited; add a new migration instead (see `20261005000009_*`).
 - Copy comes from `docs/ui-mock.html`; keep it word for word.
 - Matching previews come from the `preview_subscription` RPC, never from TypeScript.
 - Database types in `web/src/lib/database.types.ts` are generated; regenerate after migrations.
+- Env: `web/vite.config.ts` maps `SUPABASE_URL`/`SUPABASE_ANON_KEY` (what the Supabase Vercel
+  integration provides) onto `import.meta.env.VITE_*` with an explicit allowlist. Never widen
+  `envPrefix` or add the service-role key to that mapping.
 
 ## Conventions
 

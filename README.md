@@ -61,7 +61,7 @@ with the anon key and the user's session; everything sensitive stays behind RLS 
 
 ```sh
 cd web
-cp .env.example .env.local        # fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+cp .env.example .env.local        # fill in SUPABASE_URL and SUPABASE_ANON_KEY
 npm install
 npm run dev                       # http://localhost:5173
 npm test && npm run build         # Vitest, then tsc + vite build into web/dist
