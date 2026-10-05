@@ -21,6 +21,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-joyride": "^3.2.0",
     "react-router": "^8.4.0"
   },
   "devDependencies": {
