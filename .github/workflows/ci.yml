@@ -34,3 +34,25 @@ jobs:
       # Exercises the RPCs, queue, cron jobs and grants against the applied schema.
       - name: Smoke test
         run: psql "$(supabase status -o env | grep '^DB_URL' | cut -d'"' -f2)" -v ON_ERROR_STOP=1 -X -f scripts/smoke-test.sql
+
+  web:
+    name: Web app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # Build needs the public Supabase values; placeholders are fine for type-checking and bundling.
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder

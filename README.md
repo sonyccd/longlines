@@ -54,6 +54,22 @@ select * from pgmq.metrics('spot_events');
 
 Both sources should show `last_success_at` populated and `spots_last_hour > 0`.
 
+## Web app
+
+The user-facing app lives in `web/` (Vite, React, MUI, React Router). It talks to Supabase
+with the anon key and the user's session; everything sensitive stays behind RLS and RPCs.
+
+```sh
+cd web
+cp .env.example .env.local        # fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+npm install
+npm run dev                       # http://localhost:5173
+npm test && npm run build         # Vitest, then tsc + vite build into web/dist
+```
+
+Production runs on Vercel at https://app.longlines.io; see docs/OPERATIONS.md for the deploy
+settings and the Supabase Auth URLs that must match.
+
 ## Development
 
 ```sh
