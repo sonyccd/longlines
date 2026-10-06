@@ -190,7 +190,8 @@ not block the cascade.
 - Their own `profiles`, `destinations` (safe columns), `subscriptions` and
   links, through RLS.
 - `stats_snapshots`: hourly jsonb summaries of the last 7 complete UTC days, written only by
-  cron (`refresh_stats_snapshot`). Any signed-in user can read every row.
+  cron (`refresh_stats_snapshot`). Anyone can read every row, signed in or not: the Stats page
+  is public and the payload is aggregated from already-public spot feeds.
 
 `deliveries`, `subscription_quiet` and `sign_in_attempts` are service-role only.
 
