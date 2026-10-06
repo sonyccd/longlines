@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
 import { errorText } from "../app/hooks";
 import { loadLatestStats } from "../lib/api";
-import { once } from "./once";
+import { cached } from "./cache";
 import type { LatestStats } from "./types";
 
-// Exactly one stats request per page load; see once.ts.
-const fetchStats = once(loadLatestStats);
+const HOUR = 60 * 60 * 1000;
+
+// One request per hour of page use, never polled (see cache.ts). A snapshot
+// stays fresh until the next hourly refresh is due; "no snapshot yet" (null)
+// is not kept, so the first visit after the first refresh picks it up.
+const snapshot = cached(loadLatestStats, (s) => (s ? Date.parse(s.generatedAt) + HOUR : null));
 
 export function useStats(): { stats: LatestStats | null; loading: boolean; error: string | null } {
-  const [stats, setStats] = useState<LatestStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Seed from the cache so returning to /stats renders the dashboard at once instead of flashing a progress bar.
+  const [stats, setStats] = useState<LatestStats | null>(() => snapshot.peek() ?? null);
+  const [loading, setLoading] = useState(() => snapshot.peek() === undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (snapshot.peek() !== undefined) return;
     let active = true;
-    fetchStats()
+    snapshot
+      .get()
       .then((s) => {
         if (active) setStats(s);
       })

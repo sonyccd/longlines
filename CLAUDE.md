@@ -89,7 +89,8 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - `stats_snapshots` is written only by `refresh_stats_snapshot()` from pg_cron; clients have
   `select` only. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
   `supabase/tests/stats_snapshot.test.sql`; change the SQL, the type and the test together.
-- The Stats page is deliberately fixed: no controls beyond tooltips, one request per page load.
+- The Stats page is deliberately fixed: no controls beyond tooltips, one request per hour of use
+  (`web/src/stats/cache.ts` keeps a snapshot until the next refresh is due; never poll).
   Do not add filters, date pickers, sorting or MUI X Pro components.
 
 ## Delivery rules

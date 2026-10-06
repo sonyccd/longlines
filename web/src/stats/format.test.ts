@@ -69,6 +69,13 @@ describe("topStates", () => {
       { code: "NC", spots: 5 },
     ]);
   });
+  it("drops states with no spots instead of padding the list with them", () => {
+    expect(topStates({ AL: 0, NC: 2, AK: 0, VA: 1 })).toEqual([
+      { code: "NC", spots: 2 },
+      { code: "VA", spots: 1 },
+    ]);
+    expect(topStates({ AL: 0, AK: 0 })).toEqual([]);
+  });
   it("defaults to ten entries", () => {
     const byState = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`S${String(i).padStart(2, "0")}`, i]));
     expect(topStates(byState)).toHaveLength(10);

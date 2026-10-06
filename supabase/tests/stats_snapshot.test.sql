@@ -52,6 +52,12 @@ values
   ('sotawatch', 's4', 's4', pg_temp.at_utc(6, 14), 'SQ1GPR/P', 'SQ1GPR', 145500, '2m',  'fm',  '', null, null, null, 'SP/SS-004',  '{}'),
   ('sotawatch', 's5', 's5', pg_temp.at_utc(6, 14), 'SQ1GPR/P', 'SQ1GPR', 7032,   '40m', 'cw',  '', null, null, null, 'SP/SS-004',  '{}'),
   ('sotawatch', 's6', 's6', pg_temp.at_utc(6, 14), 'SQ1GPR/P', 'SQ1GPR', 7032,   '40m', 'cw',  '', null, null, null, 'SP/SS-004',  '{}');
+-- Ingest stores mode_family from _shared/modes.ts; these rows bypass ingest, so set it the way modes.ts would.
+update raw_spots set mode_family = case
+  when mode = 'cw'                          then 'cw'
+  when mode in ('ssb', 'usb', 'lsb', 'fm')  then 'phone'
+  when mode in ('ft8', 'ft4')               then 'digital'
+end;
 
 -- Refresh and window.
 select lives_ok('select refresh_stats_snapshot()', 'refresh runs');
