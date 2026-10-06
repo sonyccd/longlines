@@ -9,3 +9,6 @@ supabase/.branches/
 
 # OS / editor
 .DS_Store
+
+# Coverage output
+coverage/

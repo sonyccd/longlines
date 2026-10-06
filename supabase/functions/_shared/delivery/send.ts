@@ -178,3 +178,14 @@ export async function sendWebhook(
   }
   return { ok: true, sent };
 }
+
+/** Send with the function that matches the destination's type. */
+export function sendToDestination(
+  destination: DeliveryDestination,
+  deliveries: readonly PendingDelivery[],
+  options: SendOptions = {},
+): Promise<SendResult> {
+  return destination.type === "discord"
+    ? sendDiscord(destination, deliveries, options)
+    : sendWebhook(destination, deliveries, options);
+}
