@@ -85,7 +85,31 @@ verification example in [docs/WEBHOOKS.md](docs/WEBHOOKS.md).
 
 Prerequisites: [Docker](https://docs.docker.com/get-docker/), the
 [Supabase CLI](https://supabase.com/docs/guides/cli), [Deno](https://deno.com) 2.x, and Node
-22 for the web app. On macOS: `brew install supabase/tap/supabase deno node`.
+22.18 or later for the web app. On macOS: `brew install supabase/tap/supabase deno node`.
+
+### Shortcut: npm scripts
+
+`web/package.json` wraps the steps below. Run them from `web/` after `npm install`:
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev:full` | Starts the stack, writes `web/.env.local`, then runs Vite and `supabase functions serve` together. Ctrl+C stops both. |
+| `npm run test:all` | Runs every CI check locally (Deno fmt/lint/check/test, db lint, pgTAP, smoke test, web lint/test/build) and prints a summary. |
+| `npm run test:all:fresh` | Same, after `supabase db reset`. Use it when pgTAP fails because of leftover local data. |
+| `npm run test:deno` / `test:db` | One group of the checks above. |
+| `npm run invoke:pota` / `invoke:sotawatch` / `invoke:deliver` | Calls that function with the local service-role key, as cron does when hosted. The ingest ones hit the real upstream APIs; run them by hand only. |
+| `npm run db:match` | Runs `match_pending_spots()` once. |
+| `npm run db:psql` | Opens psql in the database container. |
+| `npm run supabase:start` / `stop` / `restart` / `reset` / `status` | The matching `supabase` command for this repo. `start` also refreshes `web/.env.local`. |
+| `npm run supabase:setup-env` | Writes the local URL and anon key into `web/.env.local`. Other lines in the file are kept. |
+| `npm run supabase:types` | Regenerates `web/src/lib/database.types.ts`. |
+| `npm run supabase:studio` / `supabase:mail` | Opens Studio or the mail catcher (macOS `open`). |
+| `npm run supabase:nuke` | Removes this project's containers, volumes and network when the stack is stuck. Other projects' stacks are left alone. All local data is lost. |
+
+`test:all` warns when the local database's migrations don't match the checkout. The stack is
+shared by every worktree, so another branch's migrations can make pgTAP fail here while CI is green.
+
+The manual steps follow.
 
 ### 1. Start the stack
 
