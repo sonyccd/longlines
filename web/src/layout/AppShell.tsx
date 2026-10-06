@@ -10,6 +10,7 @@ import SendIcon from "@mui/icons-material/Send";
 import { useLocation, useNavigate } from "react-router";
 import { useApp } from "../app/hooks";
 import { signOut } from "../lib/api";
+import { useTour } from "../tour/hooks";
 
 const NAV = [
   { id: "sources", label: "Sources", icon: <SensorsIcon /> },
@@ -24,8 +25,14 @@ export function AppShell({ children, destinationsFailing }: { children: ReactNod
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, session, notify } = useApp();
+  const { start: startTour } = useTour();
   const [navOpen, setNavOpen] = useState(false);
   const [menuEl, setMenuEl] = useState<HTMLElement | null>(null);
+  const takeTour = () => {
+    setMenuEl(null);
+    setNavOpen(false);
+    startTour();
+  };
   const page = location.pathname.replace(/^\//, "").split("/")[0] ?? "";
   const callsign = profile?.callsign ?? "";
   const initials = callsign.slice(0, 2) || "?";
@@ -103,6 +110,7 @@ export function AppShell({ children, destinationsFailing }: { children: ReactNod
             </Box>
             <Divider />
             <MenuItem onClick={() => go("account")}>Account</MenuItem>
+            <MenuItem onClick={takeTour}>Take the tour</MenuItem>
             <MenuItem onClick={() => void handleSignOut()}>Sign out</MenuItem>
           </Menu>
         </Toolbar>
