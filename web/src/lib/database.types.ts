@@ -276,6 +276,47 @@ isOneToOne: false
 "jsonb_text_array":
 { Args: { "p_case": string,"p_values": Json }; Returns: (string)[]
                            },
+"list_ingest_health":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "consecutive_failures": number | null,
+"last_error": string | null,
+"last_run_at": string | null,
+"last_success_at": string | null,
+"seconds_since_last_success": number | null,
+"source": string | null,
+"spots_last_24h": number | null,
+"spots_last_hour": number | null,
+"total_spots_ingested": number | null
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "ingest_health"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
+"list_recent_spots":
+{ Args: { "max_rows": number }; Returns: {
+              "band": string | null,
+"callsign": string | null,
+"comment": string | null,
+"frequency_khz": number | null,
+"id": number | null,
+"mode": string | null,
+"mode_family": string | null,
+"pota_location": string | null,
+"pota_park_name": string | null,
+"pota_reference": string | null,
+"sota_summit_ref": string | null,
+"source": string | null,
+"spot_time": string | null,
+"spotter": string | null
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "recent_spots"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "mark_deliveries_dropped":
 { Args: { "p_delivery_ids": (number)[],"p_msg_ids": (number)[] }; Returns: undefined
                            },
