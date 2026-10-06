@@ -79,56 +79,52 @@ verification example in [docs/WEBHOOKS.md](docs/WEBHOOKS.md).
 | `supabase/tests/` | pgTAP suites that assert grants, RLS and RPC behavior against a fresh database. |
 | `scripts/` | `smoke-test.sql` (also run by CI) and the one-time `setup-db-settings.sql` for Vault. |
 | `web/` | The user-facing app. `src/lib/api.ts` is the only module that touches supabase-js. |
+| `web/scripts/` | Local-development helpers behind the npm scripts: env setup, `dev:full`, function invokes, the local CI runner. |
 | `docs/` | Architecture, operations, webhook contract, and the UI mock the copy is taken from. |
 
 ## Running it locally
 
 Prerequisites: [Docker](https://docs.docker.com/get-docker/), the
 [Supabase CLI](https://supabase.com/docs/guides/cli), [Deno](https://deno.com) 2.x, and Node
-22 for the web app. On macOS: `brew install supabase/tap/supabase deno node`.
+22.18 or later for the web app. On macOS: `brew install supabase/tap/supabase deno node`.
 
-### 1. Start the stack
+Day-to-day commands are npm scripts in `web/package.json`; run them from `web/`.
+
+### Quick start
 
 ```sh
-supabase start
+cd web
+npm install
+npm run dev:full
 ```
 
-This brings up Postgres, Auth, the API gateway, Studio and a mail catcher, and applies every
-migration. The output prints the local URLs and keys. Keep the `anon` and `service_role` keys
-handy; you will need both.
+`dev:full` starts the local Supabase stack (Postgres, Auth, the API gateway, Studio and a mail
+catcher), applies every migration, writes the local URL and anon key into `web/.env.local`, then
+runs Vite and the Edge Functions side by side. Ctrl+C stops both; the stack keeps running until
+`npm run supabase:stop`. The first start downloads the Docker images and takes a few minutes.
 
 | Service | URL |
 | --- | --- |
+| Web app | http://localhost:5173 |
 | API | http://127.0.0.1:54321 |
-| Studio | http://127.0.0.1:54323 |
-| Mail catcher (sign-up confirmations) | http://127.0.0.1:54324 |
+| Studio (`npm run supabase:studio`) | http://127.0.0.1:54323 |
+| Mail catcher (`npm run supabase:mail`) | http://127.0.0.1:54324 |
 
-`psql` is not installed with the CLI; use the container instead:
+Local Auth requires email confirmation, so after signing up open the mail catcher and click the
+link. Local `config.toml` already lists `http://localhost:5173` in the redirect URLs.
 
-```sh
-docker exec -i supabase_db_longlines psql -U postgres
-```
+### Ingest and delivery by hand
 
-### 2. Serve the Edge Functions
-
-```sh
-supabase functions serve
-```
-
-This serves every function under `supabase/functions/` against the local stack with live
-reload. The cron jobs exist locally but have no Vault secrets to call the functions with, so
-trigger a run by hand:
+The cron jobs exist locally but have no Vault secrets to call the functions with, so trigger runs
+yourself while `dev:full` (or `npm run supabase:functions`) is serving the functions:
 
 ```sh
-curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota \
-  -H "Authorization: Bearer <local service_role key>"
-curl -X POST http://127.0.0.1:54321/functions/v1/ingest-sotawatch \
-  -H "Authorization: Bearer <local service_role key>"
+npm run invoke:pota          # or invoke:sotawatch
 ```
 
 The response is the run summary (`fetched`, `inserted`, `skipped`, `failed`). These calls hit
 the real POTA and SOTAwatch APIs, so be polite and do not script them in a loop. Then check what
-landed:
+landed with `npm run db:psql`:
 
 ```sql
 select * from ingest_health;
@@ -136,15 +132,11 @@ select source, count(*) from raw_spots group by source;
 select * from pgmq.metrics('spot_events');
 ```
 
-To push spots through matching and delivery, run the matcher and the worker by hand:
-
-```sql
-select public.match_pending_spots();
-```
+To push spots through matching and delivery, run the matcher and then the worker:
 
 ```sh
-curl -X POST http://127.0.0.1:54321/functions/v1/deliver \
-  -H "Authorization: Bearer <local service_role key>"
+npm run db:match
+npm run invoke:deliver
 ```
 
 The worker refuses plain-http and private addresses, so a receiver on your own machine is
@@ -153,44 +145,78 @@ rejected by default. For local testing only, create `supabase/functions/.env` co
 described in [docs/OPERATIONS.md](docs/OPERATIONS.md). Never set that variable on a hosted
 project.
 
-### 3. Run the web app
+### Tests and checks
 
 ```sh
-cd web
-cp .env.example .env.local        # SUPABASE_URL is already the local API; paste the local anon key
-npm install
-npm run dev                       # http://localhost:5173
+npm run test:all             # every CI check, then a pass/fail summary
+npm run test:all:fresh       # the same after `supabase db reset`
+npm run test:deno            # one group: fmt, lint, check and unit tests for the Edge Functions
+npm run test:db              # one group: db lint, pgTAP and scripts/smoke-test.sql (stack must be running)
 ```
 
-Local Auth requires email confirmation, so after signing up open the mail catcher at
-http://127.0.0.1:54324 and click the link. Local `config.toml` already lists
-`http://localhost:5173` in the redirect URLs.
+`test:all` runs what CI runs on every pull request and push to `main`: Deno fmt/lint/check/test,
+`supabase db lint`, the pgTAP suites, the smoke test, and the web app's lint, tests and build. It
+keeps going after a failure so the summary shows everything at once.
 
-### 4. Tests and checks
+The local stack is shared by every checkout and worktree of this repo. If another branch's
+migrations are applied, or local ingest runs left rows in `raw_spots`, pgTAP can fail locally
+while CI is green. `test:all` warns when the database's migrations don't match the checkout;
+`test:all:fresh` resets the database to this checkout first, which wipes local data.
+
+For a single Deno test, use the task directly from the repo root:
 
 ```sh
-deno task test        # unit tests; -P loads net/env/read permissions from deno.json
-deno task check       # type-check the Edge Function entrypoints
-deno task lint
-deno task fmt
-
-supabase test db      # pgTAP suites (local stack must be running)
-docker exec -i supabase_db_longlines psql -U postgres -v ON_ERROR_STOP=1 < scripts/smoke-test.sql
-
-cd web && npm test && npm run lint && npm run build
+deno test -P supabase/functions/_shared/__tests__/pota.test.ts --filter "hashes"
 ```
-
-CI runs all of the above on every pull request and push to `main`, applying the migrations to
-a fresh Postgres first.
 
 ### Resetting
 
-`supabase db reset` drops the local database and re-applies every migration. After any schema
-change, regenerate the types the web app compiles against:
+`npm run supabase:reset` drops the local database and re-applies every migration. After any
+schema change, regenerate the types the web app compiles against:
 
 ```sh
+npm run supabase:types
+```
+
+If the stack is stuck or corrupted and a reset doesn't help, `npm run supabase:nuke` removes this
+project's containers, volumes and network (other projects' stacks are left alone). Start again with
+`npm run supabase:start`.
+
+### npm script reference
+
+| Command | What it does |
+| --- | --- |
+| `dev:full` | `supabase:start`, then Vite and `supabase functions serve` together. |
+| `supabase:start` / `stop` / `restart` / `status` | The matching `supabase` command for this repo. `start` also runs `supabase:setup-env`. |
+| `supabase:setup-env` | Writes `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` into `web/.env.local` from `supabase status`. Other lines in the file are kept. |
+| `supabase:functions` | `supabase functions serve` on its own. |
+| `supabase:reset` | `supabase db reset`. Wipes local data. |
+| `supabase:types` | Regenerates `web/src/lib/database.types.ts`. |
+| `supabase:studio` / `supabase:mail` | Opens Studio or the mail catcher (macOS `open`). |
+| `supabase:nuke` | Removes this project's Docker containers, volumes and network. Wipes local data. |
+| `invoke:pota` / `invoke:sotawatch` / `invoke:deliver` | Calls the function with the local service-role key, as cron does when hosted. |
+| `db:match` | Runs `match_pending_spots()` once. |
+| `db:psql` | Opens psql in the database container (`psql` is not installed with the CLI). |
+| `test:all` / `test:all:fresh` / `test:deno` / `test:db` | The checks described above. |
+| `dev` / `test` / `lint` / `build` | Vite, Vitest, oxlint, and `tsc -b` + `vite build` for the web app alone. |
+
+The scripts behind them are in `web/scripts/` and only ever talk to the local stack.
+
+### Without npm
+
+The scripts are thin wrappers, so the plain commands still work from the repo root:
+
+```sh
+supabase start                                    # prints the local URLs and keys
+supabase functions serve
+curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota \
+  -H "Authorization: Bearer <local service_role key>"
+docker exec -i supabase_db_longlines psql -U postgres
 supabase gen types typescript --local > web/src/lib/database.types.ts
 ```
+
+For the web app on its own, copy `web/.env.example` to `web/.env.local`, paste the local anon key,
+and run `npm run dev` in `web/`.
 
 ## Deploying to a hosted project
 
