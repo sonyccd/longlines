@@ -9,6 +9,7 @@ import {
   deleteDestination, rotateSigningSecret, sendTest, type CreatedDestination, type Destination, type SubscriptionWithLinks,
 } from "../lib/api";
 import { errorText, useNotify } from "../app/hooks";
+import { useTour } from "../tour/hooks";
 import { DestinationDialog, SecretDialog } from "./DestinationDialog";
 import { typeLabel } from "./types";
 
@@ -21,16 +22,25 @@ interface Props {
 
 export function DestinationsPage({ dests, subs, loading, reload }: Props) {
   const notify = useNotify();
+  const tour = useTour();
   const [open, setOpen] = useState(false);
   const [secret, setSecret] = useState<{ value: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const usedBy = (id: string) => subs.filter((s) => s.destinations.includes(id)).length;
+  // The tour points at the row it created; before that, the first row.
+  const tourRow = dests.find((d) => d.id === tour.destinationId) ?? dests[0];
+
+  const openDialog = () => {
+    setOpen(true);
+    tour.report("destination-dialog-opened");
+  };
 
   const onCreated = async (d: CreatedDestination) => {
     setOpen(false);
     await reload();
     notify(`Added ${d.name}`);
     if (d.signing_secret) setSecret({ value: d.signing_secret, name: d.name });
+    tour.report("destination-created", { destinationId: d.id, secret: d.signing_secret !== null });
   };
 
   const run = async (id: string, action: () => Promise<void>) => {
@@ -51,13 +61,13 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
           <PageTitle>Destinations</PageTitle>
           <Typography color="text.secondary">Places Long Lines can deliver spots. A destination does nothing until a subscription sends spots to it.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ flexShrink: 0 }}>Add destination</Button>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={openDialog} data-tour="add-destination" sx={{ flexShrink: 0 }}>Add destination</Button>
       </Stack>
       {loading && <LinearProgress />}
       {!loading && dests.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 4, textAlign: "center" }}>
           <Typography gutterBottom>No destinations yet.</Typography>
-          <Button onClick={() => setOpen(true)}>Add your first destination</Button>
+          <Button onClick={openDialog}>Add your first destination</Button>
         </Paper>
       ) : (
         <Paper variant="outlined">
@@ -104,9 +114,11 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
                     )}
                     <Button
                       size="small" variant="outlined" disabled={busyId === d.id}
+                      data-tour={d.id === tourRow?.id ? "send-test" : undefined}
                       onClick={() => void run(d.id, async () => {
                         await sendTest(d.id);
                         notify(`Test spot sent to ${d.name}`);
+                        tour.report("test-sent");
                       })}
                     >
                       Send test
@@ -138,7 +150,13 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
         </Alert>
       ))}
       <DestinationDialog open={open} onClose={() => setOpen(false)} onCreated={(d) => void onCreated(d)} />
-      <SecretDialog secret={secret?.value ?? null} name={secret?.name ?? ""} onClose={() => setSecret(null)} />
+      <SecretDialog
+        secret={secret?.value ?? null} name={secret?.name ?? ""}
+        onClose={() => {
+          setSecret(null);
+          tour.report("secret-dismissed");
+        }}
+      />
     </Stack>
   );
 }

@@ -42,7 +42,7 @@ export function DestinationDialog({ open, onClose, onCreated }: { open: boolean;
   return (
     <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
       <DialogTitle>Add destination</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers data-tour="destination-form">
         <FormControl sx={{ mb: 2 }}>
           <FormLabel>Where should spots go?</FormLabel>
           <RadioGroup value={type} onChange={(e) => setType(e.target.value as DestinationType)}>
@@ -80,7 +80,7 @@ export function SecretDialog({ secret, name, onClose }: { secret: string | null;
   return (
     <Dialog open={secret !== null} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Signing secret for {name}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers data-tour="signing-secret">
         <Alert severity="warning" sx={{ mb: 2 }}>Copy it now. This is the only time it's shown.</Alert>
         <TextField
           label="Signing secret" value={secret ?? ""} fullWidth
