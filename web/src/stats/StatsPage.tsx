@@ -48,7 +48,7 @@ export function StatsPage() {
         <Typography color="text.secondary">
           What POTA and SOTA activity looked like over the last 7 days. Use it to pick when to activate or when to hunt.
         </Typography>
-        {stats && (
+        {hasData(stats) && (
           <Typography variant="caption" color="text.secondary">{updatedCaption(stats.generatedAt)}</Typography>
         )}
       </Box>
