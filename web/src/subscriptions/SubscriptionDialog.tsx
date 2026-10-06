@@ -7,6 +7,7 @@ import {
 import { previewSubscription, type Destination, type Preview, type SubscriptionInput } from "../lib/api";
 import { formatSpotTime, type TimePrefs } from "../lib/time";
 import { errorText } from "../app/hooks";
+import { useTour } from "../tour/hooks";
 import { BANDS, LIVE_SOURCES, MODES, modeLabel, sourceName } from "../sources/sources";
 import { spotReference } from "../sources/spots";
 import { typeLabel } from "../destinations/types";
@@ -29,6 +30,8 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
   const [sub, setSub] = useState<SubscriptionInput>(initial);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  // During the tour a tooltip sits beside the dialog; let keyboard focus reach it.
+  const { active: tourActive } = useTour();
   const set = <K extends keyof SubscriptionInput>(k: K, v: SubscriptionInput[K]) => setSub((s) => ({ ...s, [k]: v }));
 
   const filterKey = useMemo(
@@ -55,7 +58,7 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
   const count = preview?.count ?? 0;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen} disableEnforceFocus={tourActive}>
       <DialogTitle>{initial.id ? "Edit subscription" : "New subscription"}</DialogTitle>
       <DialogContent dividers>
         <Grid container spacing={3}>

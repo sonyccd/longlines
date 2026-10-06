@@ -27,20 +27,26 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
   const [secret, setSecret] = useState<{ value: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const usedBy = (id: string) => subs.filter((s) => s.destinations.includes(id)).length;
-  // The tour points at the row it created; before that, the first row.
-  const tourRow = dests.find((d) => d.id === tour.destinationId) ?? dests[0];
 
   const openDialog = () => {
     setOpen(true);
     tour.report("destination-dialog-opened");
   };
 
+  const closeDialog = () => {
+    setOpen(false);
+    tour.report("destination-dialog-closed");
+  };
+
+  // The secret dialog opens and the tour advances in the same render that closes the form, so the
+  // tour never points at an unmounted form while the list reloads. The Send test row the next step
+  // needs appears with the reload; Joyride waits for it.
   const onCreated = async (d: CreatedDestination) => {
     setOpen(false);
-    await reload();
-    notify(`Added ${d.name}`);
     if (d.signing_secret) setSecret({ value: d.signing_secret, name: d.name });
     tour.report("destination-created", { destinationId: d.id, secret: d.signing_secret !== null });
+    notify(`Added ${d.name}`);
+    await reload();
   };
 
   const run = async (id: string, action: () => Promise<void>) => {
@@ -114,7 +120,7 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
                     )}
                     <Button
                       size="small" variant="outlined" disabled={busyId === d.id}
-                      data-tour={d.id === tourRow?.id ? "send-test" : undefined}
+                      data-tour={d.id === tour.destinationId ? "send-test" : undefined}
                       onClick={() => void run(d.id, async () => {
                         await sendTest(d.id);
                         notify(`Test spot sent to ${d.name}`);
@@ -149,7 +155,7 @@ export function DestinationsPage({ dests, subs, loading, reload }: Props) {
           {d.name} has returned errors for the last {d.consecutive_failures} deliveries. Spots are queued and will retry for 24 hours.
         </Alert>
       ))}
-      <DestinationDialog open={open} onClose={() => setOpen(false)} onCreated={(d) => void onCreated(d)} />
+      <DestinationDialog open={open} onClose={closeDialog} onCreated={(d) => void onCreated(d)} />
       <SecretDialog
         secret={secret?.value ?? null} name={secret?.name ?? ""}
         onClose={() => {

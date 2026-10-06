@@ -10,6 +10,9 @@ import { TourContext, type TourDetail, type TourValue } from "./context";
 import { INITIAL, reduce, STEPS, TOUR_ENDED_TOAST, type Segment, type TourEvent, type TourStep } from "./model";
 
 const TARGET_WAIT_MS = 3000;
+const LOCALE = { next: "Next", last: "Done", skip: "Skip tour" };
+/** The element Joyride renders its tooltip and overlay into (a child of document.body). */
+const JOYRIDE_PORTAL_ID = "react-joyride-portal";
 
 function body(segments: Segment[]) {
   return segments.map((s, i) =>
@@ -35,7 +38,7 @@ function toJoyrideStep(step: TourStep): Step {
 
 export function TourProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reduce, INITIAL);
-  const { notify } = useApp();
+  const { notify, session } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -59,7 +62,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void navigateRef.current(route);
   }, [route, state.index]);
 
-  // Any other navigation away from the step's page ends the tour.
+  // Any other navigation away from the step's page ends the tour. Signing out also lands here;
+  // the toast mentions the account menu, so a signed-out user gets no toast.
   useEffect(() => {
     if (!route) return;
     if (location.pathname === route) {
@@ -68,8 +72,23 @@ export function TourProvider({ children }: { children: ReactNode }) {
     }
     if (pendingRoute.current === route) return;
     dispatch({ type: "end" });
-    notify(TOUR_ENDED_TOAST);
-  }, [location.pathname, route, notify]);
+    if (session) notify(TOUR_ENDED_TOAST);
+  }, [location.pathname, route, notify, session]);
+
+  // While an MUI Dialog is open its Modal marks every other child of <body> aria-hidden, which
+  // includes Joyride's portal, so the form steps' tooltips would be hidden from assistive
+  // technology. Undo that for the portal alone for as long as the tour runs.
+  useEffect(() => {
+    if (!state.active) return;
+    const unhide = () => {
+      const portal = document.getElementById(JOYRIDE_PORTAL_ID);
+      if (portal?.getAttribute("aria-hidden") === "true") portal.removeAttribute("aria-hidden");
+    };
+    const observer = new MutationObserver(unhide);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden"] });
+    unhide();
+    return () => observer.disconnect();
+  }, [state.active]);
 
   const onEvent = useCallback((data: EventData) => {
     if (data.type === EVENTS.STEP_AFTER && data.action === ACTIONS.NEXT) {
@@ -83,6 +102,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [notify]);
 
   const steps = useMemo(() => STEPS.map(toJoyrideStep), []);
+  // Joyride deep-compares its props on every render, so keep these objects stable.
+  const options = useMemo(() => ({
+    zIndex: theme.zIndex.modal + 50,
+    disableFocusTrap: true,
+    overlayClickAction: false as const,
+    dismissKeyAction: false as const,
+    closeButtonAction: "skip" as const,
+    skipBeacon: true,
+    targetWaitTimeout: TARGET_WAIT_MS,
+    backgroundColor: theme.palette.background.paper,
+    arrowColor: theme.palette.background.paper,
+    textColor: theme.palette.text.primary,
+    primaryColor: theme.palette.primary.main,
+    width: "min(380px, calc(100vw - 32px))",
+  }), [theme]);
   const start = useCallback(() => dispatch({ type: "start" }), []);
   const report = useCallback((event: TourEvent, detail?: TourDetail) => dispatch({ type: "event", event, ...detail }), []);
   const value = useMemo<TourValue>(
@@ -99,21 +133,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
         stepIndex={state.index}
         continuous
         onEvent={onEvent}
-        locale={{ next: "Next", last: "Done", skip: "Skip tour" }}
-        options={{
-          zIndex: theme.zIndex.modal + 50,
-          disableFocusTrap: true,
-          overlayClickAction: false,
-          dismissKeyAction: false,
-          closeButtonAction: "skip",
-          skipBeacon: true,
-          targetWaitTimeout: TARGET_WAIT_MS,
-          backgroundColor: theme.palette.background.paper,
-          arrowColor: theme.palette.background.paper,
-          textColor: theme.palette.text.primary,
-          primaryColor: theme.palette.primary.main,
-          width: "min(380px, calc(100vw - 32px))",
-        }}
+        locale={LOCALE}
+        options={options}
       />
     </TourContext.Provider>
   );
