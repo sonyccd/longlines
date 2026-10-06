@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayLabel, fmt, hasData, hourLabel, topStates, updatedCaption, weekday } from "./format";
+import { dayLabel, fillOpacity, fmt, hasData, hourLabel, topStates, updatedCaption, weekday } from "./format";
 import type { LatestStats, StatsPayload } from "./types";
 
 const payload = (spots: number): StatsPayload => ({
@@ -72,5 +72,18 @@ describe("topStates", () => {
   it("defaults to ten entries", () => {
     const byState = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`S${String(i).padStart(2, "0")}`, i]));
     expect(topStates(byState)).toHaveLength(10);
+  });
+});
+
+describe("fillOpacity", () => {
+  it("ranges from 0.12 at the smallest non-zero value to 1 at the max", () => {
+    expect(fillOpacity(1, 1)).toBeCloseTo(1);
+    expect(fillOpacity(50, 100)).toBeCloseTo(0.56);
+    expect(fillOpacity(1, 1000)).toBeCloseTo(0.12088);
+  });
+  it("is 0 for zero values and when there is no activity at all", () => {
+    expect(fillOpacity(0, 100)).toBe(0);
+    expect(fillOpacity(0, 0)).toBe(0);
+    expect(fillOpacity(5, 0)).toBe(0);
   });
 });
