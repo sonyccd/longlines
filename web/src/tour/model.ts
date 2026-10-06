@@ -3,10 +3,12 @@
 
 export const TOUR_EVENTS = [
   "destination-dialog-opened",
+  "destination-dialog-closed",
   "destination-created",
   "secret-dismissed",
   "test-sent",
   "subscription-dialog-opened",
+  "subscription-dialog-closed",
   "subscription-created",
 ] as const;
 export type TourEvent = (typeof TOUR_EVENTS)[number];
@@ -25,6 +27,11 @@ export interface TourStep {
   body: Segment[];
   /** "next" shows a primary button; an event name waits for the page to report it. */
   advanceOn: "next" | TourEvent;
+  /**
+   * An event that sends the tour back one step. Form steps use it: when the dialog they point at
+   * is cancelled, the target unmounts, so the tour returns to the button that opens it.
+   */
+  backOn?: TourEvent;
   /** Primary button label on "next" steps. Defaults to Next (Done on the last step). */
   nextLabel?: string;
   /** Tooltip side; ignored for centered steps. Defaults to bottom. */
@@ -36,6 +43,8 @@ export interface TourStep {
 }
 
 export const TOUR_ENDED_TOAST = "Tour ended. You can take it again from the account menu.";
+/** Account-menu entry that starts the tour. The mock has no tour, so this copy lives here. */
+export const TOUR_MENU_LABEL = "Take the tour";
 
 export const STEPS: readonly TourStep[] = [
   {
@@ -49,7 +58,8 @@ export const STEPS: readonly TourStep[] = [
     body: ["A destination is a place spots get delivered. Click Add destination."],
   },
   {
-    id: "destination-form", route: "/destinations", target: "destination-form", advanceOn: "destination-created", placement: "right", hideOverlay: true, dismissible: true,
+    id: "destination-form", route: "/destinations", target: "destination-form", advanceOn: "destination-created", backOn: "destination-dialog-closed",
+    placement: "right", hideOverlay: true, dismissible: true,
     title: "Point it at webhook.site",
     body: [
       "Choose Webhook. Then open ", { text: "webhook.site", href: "https://webhook.site" },
@@ -79,7 +89,8 @@ export const STEPS: readonly TourStep[] = [
   {
     // Anchored to the save button, not the form: the dialog is nearly viewport-high, so a tooltip
     // beside or above the form gets pushed off screen.
-    id: "subscription-form", route: "/subscriptions", target: "subscription-save", advanceOn: "subscription-created", placement: "top", hideOverlay: true, dismissible: true,
+    id: "subscription-form", route: "/subscriptions", target: "subscription-save", advanceOn: "subscription-created", backOn: "subscription-dialog-closed",
+    placement: "top", hideOverlay: true, dismissible: true,
     title: "Choose what to receive",
     body: ["Name it and pick filters: sources, bands, modes, callsigns, or a park, summit, or location. Leave a filter empty to match everything. Under Send matches to, choose your webhook. The preview shows how many of the last 200 spots would have matched. Click Create subscription."],
   },
@@ -130,7 +141,9 @@ export function reduce(state: TourState, action: TourAction): TourState {
     }
     case "event": {
       const step = STEPS[state.index];
-      if (!state.active || !step || step.advanceOn !== action.event) return state;
+      if (!state.active || !step) return state;
+      if (step.backOn === action.event) return { ...state, index: Math.max(0, state.index - 1), dismissed: false };
+      if (step.advanceOn !== action.event) return state;
       let to = state.index + 1;
       // A Discord destination has no secret, so there is no secret dialog to point at.
       if (action.secret === false && STEPS[to]?.advanceOn === "secret-dismissed") to += 1;

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Alert, Box, Button, Grid, LinearProgress, Link, Paper, Stack, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useLocation, useNavigate } from "react-router";
+import InsightsIcon from "@mui/icons-material/Insights";
 import heroUrl from "../assets/landing-hero.jpg";
 import { callsignAvailable, signIn, signUp } from "../lib/api";
 import { isValidCallsign, normalizeCallsign } from "../lib/callsign";
@@ -80,7 +81,7 @@ export function SignInPage() {
       try {
         localStorage.setItem(WELCOME_KEY, callsign);
       } catch {
-        // storage unavailable; the welcome toast is a nicety
+        // storage unavailable; the new account just won't start the tour by itself
       }
       void navigate("/check-email", { state: { email: su.email.trim() } });
     } catch (err) {
@@ -113,6 +114,9 @@ export function SignInPage() {
           <Typography variant="body2" color="text.secondary">
             One connection upstream, as many destinations as you want downstream. Named for the AT&amp;T microwave relay network.
           </Typography>
+          <Button variant="outlined" startIcon={<InsightsIcon />} onClick={() => void navigate("/stats")} sx={{ mt: 3 }}>
+            View stats
+          </Button>
         </Box>
       </Grid>
       <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center", justifyContent: "center", p: { xs: 2, sm: 3 } }}>

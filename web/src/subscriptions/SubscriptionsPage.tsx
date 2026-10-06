@@ -52,6 +52,11 @@ export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScr
     tour.report("subscription-dialog-opened");
   };
 
+  const cancelEdit = () => {
+    setEditing(null);
+    tour.report("subscription-dialog-closed");
+  };
+
   const save = async (s: SubscriptionInput) => {
     setBusy(true);
     try {
@@ -134,7 +139,7 @@ export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScr
       {editing && (
         <SubscriptionDialog
           open initial={editing} dests={dests} prefs={prefs} busy={busy} fullScreen={fullScreen}
-          onClose={() => setEditing(null)} onSave={(s) => void save(s)}
+          onClose={cancelEdit} onSave={(s) => void save(s)}
         />
       )}
     </Stack>

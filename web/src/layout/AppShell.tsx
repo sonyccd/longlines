@@ -12,6 +12,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useApp } from "../app/hooks";
 import { signOut } from "../lib/api";
 import { useTour } from "../tour/hooks";
+import { TOUR_MENU_LABEL } from "../tour/model";
 
 const NAV = [
   { id: "sources", label: "Sources", icon: <SensorsIcon /> },
@@ -111,7 +112,7 @@ export function AppShell({ children, destinationsFailing }: { children: ReactNod
             </Box>
             <Divider />
             <MenuItem onClick={() => go("account")}>Account</MenuItem>
-            <MenuItem onClick={takeTour}>Take the tour</MenuItem>
+            <MenuItem onClick={takeTour}>{TOUR_MENU_LABEL}</MenuItem>
             <MenuItem onClick={() => void handleSignOut()}>Sign out</MenuItem>
           </Menu>
         </Toolbar>
