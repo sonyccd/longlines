@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Alert, Box, Button, Stack, Tab, Tabs, TextField } from "@mui/material";
+import { Alert, Box, Button, Grid, LinearProgress, Link, Paper, Stack, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useLocation, useNavigate } from "react-router";
-import { AuthFrame } from "./AuthFrame";
+import heroUrl from "../assets/landing-hero.jpg";
 import { callsignAvailable, signIn, signUp } from "../lib/api";
 import { isValidCallsign, normalizeCallsign } from "../lib/callsign";
 import { errorText, useApp, WELCOME_KEY } from "../app/hooks";
@@ -16,6 +16,10 @@ interface LocationState {
 export function SignInPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  // Autofocus only where the keyboard won't scroll the intro off screen. noSsr so the
+  // first render already knows the viewport; autoFocus is only honored on mount.
+  const desktop = useMediaQuery(theme.breakpoints.up("md"), { noSsr: true });
   const state = (location.state ?? {}) as LocationState;
   const { signInNotice, setSignInNotice } = useApp();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -87,57 +91,81 @@ export function SignInPage() {
   };
 
   return (
-    <AuthFrame
-      busy={busy}
-      tabs={
-        <Tabs value={mode} onChange={(_e, v: "signin" | "signup") => switchMode(v)} variant="fullWidth">
-          <Tab value="signin" label="Sign in" />
-          <Tab value="signup" label="Create account" />
-        </Tabs>
-      }
-    >
-      <Box sx={{ p: 3 }}>
-        {info && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setInfo(null)}>{info}</Alert>}
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    <Grid container sx={{ minHeight: "100dvh" }}>
+      <Grid size={{ xs: 12, md: 8 }} sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box
+          component="img"
+          src={heroUrl}
+          alt="Microwave relay tower with horn antennas, Mojave National Preserve"
+          sx={{ display: "block", width: "100%", height: { xs: 200, sm: 280, md: "52vh" }, objectFit: "cover", borderRadius: 1 }}
+        />
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+          Microwave relay tower, Mojave National Preserve. Photo: Tony Webster,{" "}
+          <Link href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener" color="inherit">CC BY-SA 2.0</Link>.
+        </Typography>
+        <Box sx={{ maxWidth: 640, mt: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom>Long Lines</Typography>
+          <Typography variant="subtitle1" color="text.secondary" gutterBottom>A router for amateur radio spots.</Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Long Lines connects to amateur radio spotting networks, such as POTA and SOTA, stores every spot, and forwards the ones that
+            match your filters to places like Discord channels and webhooks.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            One connection upstream, as many destinations as you want downstream. Named for the AT&amp;T microwave relay network.
+          </Typography>
+        </Box>
+      </Grid>
+      <Grid size={{ xs: 12, md: 4 }} sx={{ display: "flex", alignItems: "center", justifyContent: "center", p: { xs: 2, sm: 3 } }}>
+        <Paper variant="outlined" sx={{ width: "100%", maxWidth: 400 }}>
+          <Tabs value={mode} onChange={(_e, v: "signin" | "signup") => switchMode(v)} variant="fullWidth">
+            <Tab value="signin" label="Sign in" />
+            <Tab value="signup" label="Create account" />
+          </Tabs>
+          {busy && <LinearProgress />}
+          <Box sx={{ p: 3 }}>
+            {info && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setInfo(null)}>{info}</Alert>}
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {mode === "signin" && (
-          <Box component="form" onSubmit={(e) => void doSignIn(e)} noValidate>
-            <Stack spacing={2}>
-              <TextField label="Callsign or email" value={ident} onChange={(e) => setIdent(e.target.value)} autoComplete="username" autoFocus fullWidth />
-              <TextField label="Password" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" fullWidth />
-              <Button type="submit" variant="contained" size="large" disabled={!ident || !pw || busy} fullWidth>Sign in</Button>
-              <Button size="small" onClick={() => void navigate("/reset-password")}>Forgot your password?</Button>
-            </Stack>
-          </Box>
-        )}
+            {mode === "signin" && (
+              <Box component="form" onSubmit={(e) => void doSignIn(e)} noValidate>
+                <Stack spacing={2}>
+                  <TextField label="Callsign or email" value={ident} onChange={(e) => setIdent(e.target.value)} autoComplete="username" autoFocus={desktop} fullWidth />
+                  <TextField label="Password" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" fullWidth />
+                  <Button type="submit" variant="contained" size="large" disabled={!ident || !pw || busy} fullWidth>Sign in</Button>
+                  <Button size="small" onClick={() => void navigate("/reset-password")}>Forgot your password?</Button>
+                </Stack>
+              </Box>
+            )}
 
-        {mode === "signup" && (
-          <Box component="form" onSubmit={(e) => void doSignUp(e)} noValidate>
-            <Stack spacing={2}>
-              <TextField
-                label="Callsign" value={su.callsign} onChange={(e) => setF("callsign", e.target.value.toUpperCase().trim())} onBlur={() => touch("callsign")}
-                error={csErr} helperText={csErr ? "Enter a valid amateur callsign, like KK4PWJ." : "You'll use this to sign in."}
-                autoComplete="username" autoFocus required fullWidth
-              />
-              <TextField label="Name" value={su.name} onChange={(e) => setF("name", e.target.value)} autoComplete="name" helperText="Optional" fullWidth />
-              <TextField
-                label="Email" type="email" value={su.email} onChange={(e) => setF("email", e.target.value)} onBlur={() => touch("email")}
-                error={emErr} helperText={emErr ? "Enter a valid email address." : "For password resets. We don't send newsletters."}
-                autoComplete="email" required fullWidth
-              />
-              <TextField
-                label="Password" type="password" value={su.password} onChange={(e) => setF("password", e.target.value)} onBlur={() => touch("password")}
-                error={pwErr} helperText={pwErr ? "Use at least 8 characters." : "At least 8 characters."} autoComplete="new-password" required fullWidth
-              />
-              <TextField
-                label="Confirm password" type="password" value={su.confirm} onChange={(e) => setF("confirm", e.target.value)} onBlur={() => touch("confirm")}
-                error={cfErr} helperText={cfErr ? "Passwords don't match." : " "} autoComplete="new-password" required fullWidth
-              />
-              <Button type="submit" variant="contained" size="large" disabled={busy} fullWidth>Create account</Button>
-            </Stack>
+            {mode === "signup" && (
+              <Box component="form" onSubmit={(e) => void doSignUp(e)} noValidate>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Callsign" value={su.callsign} onChange={(e) => setF("callsign", e.target.value.toUpperCase().trim())} onBlur={() => touch("callsign")}
+                    error={csErr} helperText={csErr ? "Enter a valid amateur callsign, like KK4PWJ." : "You'll use this to sign in."}
+                    autoComplete="username" autoFocus={desktop} required fullWidth
+                  />
+                  <TextField label="Name" value={su.name} onChange={(e) => setF("name", e.target.value)} autoComplete="name" helperText="Optional" fullWidth />
+                  <TextField
+                    label="Email" type="email" value={su.email} onChange={(e) => setF("email", e.target.value)} onBlur={() => touch("email")}
+                    error={emErr} helperText={emErr ? "Enter a valid email address." : "For password resets. We don't send newsletters."}
+                    autoComplete="email" required fullWidth
+                  />
+                  <TextField
+                    label="Password" type="password" value={su.password} onChange={(e) => setF("password", e.target.value)} onBlur={() => touch("password")}
+                    error={pwErr} helperText={pwErr ? "Use at least 8 characters." : "At least 8 characters."} autoComplete="new-password" required fullWidth
+                  />
+                  <TextField
+                    label="Confirm password" type="password" value={su.confirm} onChange={(e) => setF("confirm", e.target.value)} onBlur={() => touch("confirm")}
+                    error={cfErr} helperText={cfErr ? "Passwords don't match." : " "} autoComplete="new-password" required fullWidth
+                  />
+                  <Button type="submit" variant="contained" size="large" disabled={busy} fullWidth>Create account</Button>
+                </Stack>
+              </Box>
+            )}
           </Box>
-        )}
-      </Box>
-    </AuthFrame>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 }
