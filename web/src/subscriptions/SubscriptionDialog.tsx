@@ -161,7 +161,10 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={busy}>Cancel</Button>
-        <Button variant="contained" disabled={!sub.name.trim() || sub.destinations.length === 0 || busy} onClick={() => onSave(sub)}>
+        <Button
+          variant="contained" disabled={!sub.name.trim() || sub.destinations.length === 0 || busy} onClick={() => onSave(sub)}
+          data-tour="subscription-save"
+        >
           {initial.id ? "Save changes" : "Create subscription"}
         </Button>
       </DialogActions>

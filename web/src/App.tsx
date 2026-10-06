@@ -17,6 +17,8 @@ import { StatsPage } from "./stats/StatsPage";
 import { AccountPage } from "./account/AccountPage";
 import { loadDestinations, loadSubscriptions, type Destination, type SubscriptionWithLinks } from "./lib/api";
 import type { TimePrefs } from "./lib/time";
+import { TourProvider } from "./tour/TourProvider";
+import { useTour } from "./tour/hooks";
 
 export default function App() {
   const dark = useMediaQuery("(prefers-color-scheme: dark)");
@@ -25,8 +27,10 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppProvider>
-        <Router />
-        <Toast />
+        <TourProvider>
+          <Router />
+          <Toast />
+        </TourProvider>
       </AppProvider>
       <SpeedInsights />
       <Analytics />
@@ -88,7 +92,7 @@ function RequireAuth({ page }: { page: Page }) {
 
 function SignedIn({ page }: { page: Page }) {
   const { profile, notify } = useApp();
-  const navigate = useNavigate();
+  const { start: startTour } = useTour();
   const mobile = useMediaQuery((t: ReturnType<typeof createTheme>) => t.breakpoints.down("md"));
   const [dests, setDests] = useState<Destination[]>([]);
   const [subs, setSubs] = useState<SubscriptionWithLinks[]>([]);
@@ -111,7 +115,7 @@ function SignedIn({ page }: { page: Page }) {
     void reload();
   }, [reload]);
 
-  // A brand-new account lands on Destinations with a welcome.
+  // A brand-new account starts the tour, which begins on Destinations.
   useEffect(() => {
     if (!profile) return;
     let welcome: string | null = null;
@@ -121,10 +125,8 @@ function SignedIn({ page }: { page: Page }) {
     } catch {
       return;
     }
-    if (welcome && welcome === profile.callsign) {
-      void navigate("/destinations", { replace: true, state: { toast: `Welcome, ${profile.callsign}. Start by adding a destination.` } });
-    }
-  }, [profile, navigate]);
+    if (welcome && welcome === profile.callsign) startTour();
+  }, [profile, startTour]);
 
   if (!profile) return <LinearProgress />;
 

@@ -121,6 +121,9 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - Env: `web/vite.config.ts` maps `SUPABASE_URL`/`SUPABASE_ANON_KEY` (what the Supabase Vercel
   integration provides) onto `import.meta.env.VITE_*` with an explicit allowlist. Never widen
   `envPrefix` or add the service-role key to that mapping.
+- The guided tour lives in `web/src/tour/`. Steps and copy are in `model.ts` (the mock has no
+  tour section); `TourProvider.tsx` is the only module that imports react-joyride. Pages only add
+  `data-tour` attributes and call `useTour().report(...)`; never drive Joyride from a page.
 
 ## Conventions
 
