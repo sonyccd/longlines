@@ -7,6 +7,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import SensorsIcon from "@mui/icons-material/Sensors";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SendIcon from "@mui/icons-material/Send";
+import InsightsIcon from "@mui/icons-material/Insights";
 import { useLocation, useNavigate } from "react-router";
 import { useApp } from "../app/hooks";
 import { signOut } from "../lib/api";
@@ -17,6 +18,7 @@ const NAV = [
   { id: "sources", label: "Sources", icon: <SensorsIcon /> },
   { id: "subscriptions", label: "Subscriptions", icon: <FilterListIcon /> },
   { id: "destinations", label: "Destinations", icon: <SendIcon /> },
+  { id: "stats", label: "Stats", icon: <InsightsIcon /> },
 ];
 const DRAWER = 232;
 
@@ -71,7 +73,6 @@ export function AppShell({ children, destinationsFailing }: { children: ReactNod
       <Divider />
       <List dense>
         <ListItem><ListItemText primary="Groups" secondary="Coming later" /></ListItem>
-        <ListItem><ListItemText primary="Stats" secondary="Coming later" /></ListItem>
       </List>
     </Box>
   );

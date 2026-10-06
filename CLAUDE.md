@@ -84,6 +84,14 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - pgTAP tests include `helpers/users.psql` (not `.sql`, so the runner skips it) and use
   `pg_temp.as_user(uuid)` to assert RLS from a user's point of view.
 
+## Phase 3 stats rules
+
+- `stats_snapshots` is written only by `refresh_stats_snapshot()` from pg_cron; clients have
+  `select` only. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
+  `supabase/tests/stats_snapshot.test.sql`; change the SQL, the type and the test together.
+- The Stats page is deliberately fixed: no controls beyond tooltips, one request per page load.
+  Do not add filters, date pickers, sorting or MUI X Pro components.
+
 ## Delivery rules
 
 - Matching lives in SQL (`spot_matches`, `match_pending_spots`); never re-implement the predicate in

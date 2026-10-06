@@ -189,6 +189,8 @@ not block the cascade.
 - `ingest_health`: made a definer view so the Sources page can show it.
 - Their own `profiles`, `destinations` (safe columns), `subscriptions` and
   links, through RLS.
+- `stats_snapshots`: hourly jsonb summaries of the last 7 complete UTC days, written only by
+  cron (`refresh_stats_snapshot`). Any signed-in user can read every row.
 
 `deliveries`, `subscription_quiet` and `sign_in_attempts` are service-role only.
 
@@ -248,3 +250,43 @@ range refusal and the 10 s timeout keep that window small.
 
 `send-test` reuses the same formatting and sending code for one labeled
 sample spot.
+
+# Phase 3: stats snapshot
+
+```mermaid
+flowchart LR
+  R[(raw_spots)] -->|pg_cron, 5 past every hour| F[refresh_stats_snapshot]
+  F --> S[(stats_snapshots)]
+  S -->|newest row, one query| W[Stats page]
+```
+
+The Stats page is a fixed dashboard of the seven most recent complete UTC days: midnight UTC seven
+days ago up to, but not including, midnight UTC today, filtered on `spot_time`. Nothing on it is
+adjustable, so the whole page is one precomputed JSON document.
+
+## Why a snapshot table
+
+The payload is a dozen aggregates over a week of spots (totals, per-day and per-band counts, a
+per-state choropleth, mode shares, top activators and references). Computing it on every page view
+would scan `raw_spots`, which clients cannot read anyway. Instead `refresh_stats_snapshot()`, a
+security-definer plpgsql function, builds the payload in one `insert … with … select` and runs
+from pg_cron at five past every hour. The web app selects the newest row by `generated_at`, caches
+it for the browser session and never polls. The table keeps the 48 most recent rows (two days); the
+refresh prunes older ones.
+
+## Counting rules
+
+- Every `raw_spots` row is one spot. A station spotted by both sources counts twice; callsigns are
+  counted exactly as stored (`/P` and the like are kept).
+- POTA state counts come from `pota_location`, a comma-separated list such as `US-NC,US-VA`; a park
+  spanning two states counts once in each. Non-US entries and territories are ignored and all 51
+  codes (50 states and DC) are always present, zero-filled.
+- SOTA associations are the part of `sota_summit_ref` before the `/`.
+- Bands use a fixed order (`80m` through `2m`); other bands are excluded from the band charts only.
+- Modes collapse to CW, SSB (`ssb`, `usb`, `lsb`), FT8/FT4, FM and Other (including null) as
+  integer percentages that sum to exactly 100; the rounding remainder goes to the largest bucket.
+- Window arithmetic is done on `now() at time zone 'utc'` so a session time zone with DST cannot
+  shift the window by an hour.
+
+The payload's TypeScript shape is `StatsPayload` in `web/src/stats/types.ts`; the pgTAP suite
+`supabase/tests/stats_snapshot.test.sql` pins both the shape and the numbers.
