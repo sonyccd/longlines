@@ -45,19 +45,21 @@ onboarding service.
 ### Steps
 
 Order is destination, test, subscription because a subscription cannot be saved
-without a destination. Copy below is final and is also added to
-`docs/ui-mock.html` so the mock remains the copy source of truth.
+without a destination. Copy below is final. It lives only in
+`web/src/tour/model.ts`: `docs/ui-mock.html` became a minified bundle in
+commit caee34b0, so there is no readable mock section to hold it. Form steps
+(3, 4 and 8) hide Joyride's dimmed overlay so the whole dialog stays usable.
 
 | # | Title | Route | Target | Advances on |
 |---|-------|-------|--------|-------------|
 | 1 | Welcome | /destinations | centered | Start button |
 | 2 | Add a destination | /destinations | `add-destination` button | `destination-dialog-opened` |
-| 3 | Point it at webhook.site | /destinations | `destination-form` (dialog content) | `destination-created` |
+| 3 | Point it at webhook.site | /destinations | `destination-form` (dialog content, overlay hidden) | `destination-created` |
 | 4 | Your signing secret | /destinations | `signing-secret` (secret dialog content) | `secret-dismissed`; skipped when `destination-created` reports no secret |
 | 5 | Send a test | /destinations | `send-test` button on the tour's destination row | `test-sent` |
 | 6 | Now pick your spots | /destinations | centered | Next button |
 | 7 | Create a subscription | /subscriptions | `new-subscription` button | `subscription-dialog-opened` |
-| 8 | Choose what to receive | /subscriptions | `subscription-form` (dialog content) | `subscription-created` |
+| 8 | Choose what to receive | /subscriptions | `subscription-save` (Create subscription button, tooltip above, overlay hidden) | `subscription-created` |
 | 9 | You're on the air | /subscriptions | centered | Done button |
 
 Copy:
@@ -122,7 +124,8 @@ react-joyride.
 
 ### `TourProvider.tsx`
 
-- Holds `TourState` with `useReducer`, exposes `useTour()` returning
+- Holds `TourState` with `useReducer`. The context lives in `context.ts` and
+  `useTour()` in `hooks.ts` (mirroring `app/`), returning
   `{ active, destinationId, start, report }`.
 - Renders one `<Joyride>` in controlled mode: `run`, `stepIndex`, `steps`
   derived from `STEPS` (each `target` becomes `[data-tour="name"]`, centered
@@ -134,9 +137,9 @@ react-joyride.
 - When the active step's route differs from the current location it navigates
   there. When the location changes to something other than the active step's
   route, it dispatches `end` and shows the toast.
-- Before showing a step whose target is not yet in the DOM, it polls every
-  100 ms for up to 3 s, then shows it anyway so Joyride's own target-not-found
-  handling applies.
+- Joyride's own `targetWaitTimeout` (3 s) polls for a step's target before
+  showing it. If the target never appears, Joyride reports target-not-found
+  and the provider ends the tour with the same toast as leaving the page.
 - A module header comment explains why react-joyride was added.
 
 ### Page integration
@@ -152,11 +155,12 @@ react-joyride.
   secret dialog closes, reports `test-sent` after a successful test, and sets
   `data-tour="send-test"` on the Send test button of the row whose id matches
   the tour's `destinationId`, falling back to the first row.
-- `DestinationDialog.tsx` and `SubscriptionDialog.tsx` set `data-tour` on their
-  `DialogContent`.
+- `DestinationDialog.tsx` sets `data-tour` on both of its `DialogContent`s;
+  `SubscriptionDialog.tsx` sets it on the Create subscription button, because
+  its dialog is nearly viewport-high and a tooltip beside the content gets
+  pushed off screen.
 - `SubscriptionsPage.tsx` sets `data-tour="new-subscription"`, reports
   `subscription-dialog-opened` and `subscription-created`.
-- `docs/ui-mock.html` gains a tour section with the copy and the menu item.
 - `CLAUDE.md` gains a line under web app rules: tour steps and copy live in
   `web/src/tour/model.ts`; only `TourProvider` imports react-joyride; pages
   only add `data-tour` attributes and call `report`.

@@ -41,18 +41,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const route = state.active ? step?.route : undefined;
   // Set while the tour itself is navigating to a step's page, so that move isn't mistaken for the user leaving.
   const pendingRoute = useRef<string | null>(null);
-  // The current path for the step-entry effect, which must not re-run on navigation.
+  // The step-entry effect must run only when the step changes, never on navigation: `navigate`
+  // from BrowserRouter changes identity with the location, so both it and the path live in refs.
   const pathRef = useRef(location.pathname);
+  const navigateRef = useRef(navigate);
   useEffect(() => {
     pathRef.current = location.pathname;
+    navigateRef.current = navigate;
   });
 
   // Entering a step on another page: go there.
   useEffect(() => {
     if (!route || pathRef.current === route) return;
     pendingRoute.current = route;
-    void navigate(route);
-  }, [route, state.index, navigate]);
+    void navigateRef.current(route);
+  }, [route, state.index]);
 
   // Any other navigation away from the step's page ends the tour.
   useEffect(() => {

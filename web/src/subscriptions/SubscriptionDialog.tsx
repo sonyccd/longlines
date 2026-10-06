@@ -57,7 +57,7 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
       <DialogTitle>{initial.id ? "Edit subscription" : "New subscription"}</DialogTitle>
-      <DialogContent dividers data-tour="subscription-form">
+      <DialogContent dividers>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack spacing={2.5}>
@@ -161,7 +161,10 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={busy}>Cancel</Button>
-        <Button variant="contained" disabled={!sub.name.trim() || sub.destinations.length === 0 || busy} onClick={() => onSave(sub)}>
+        <Button
+          variant="contained" disabled={!sub.name.trim() || sub.destinations.length === 0 || busy} onClick={() => onSave(sub)}
+          data-tour="subscription-save"
+        >
           {initial.id ? "Save changes" : "Create subscription"}
         </Button>
       </DialogActions>

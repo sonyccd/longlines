@@ -75,7 +75,9 @@ export const STEPS: readonly TourStep[] = [
     body: ["Click New subscription."],
   },
   {
-    id: "subscription-form", route: "/subscriptions", target: "subscription-form", advanceOn: "subscription-created", placement: "right", hideOverlay: true,
+    // Anchored to the save button, not the form: the dialog is nearly viewport-high, so a tooltip
+    // beside or above the form gets pushed off screen.
+    id: "subscription-form", route: "/subscriptions", target: "subscription-save", advanceOn: "subscription-created", placement: "top", hideOverlay: true,
     title: "Choose what to receive",
     body: ["Name it and pick filters: sources, bands, modes, callsigns, or a park, summit, or location. Leave a filter empty to match everything. Under Send matches to, choose your webhook. The preview shows how many of the last 200 spots would have matched. Click Create subscription."],
   },
