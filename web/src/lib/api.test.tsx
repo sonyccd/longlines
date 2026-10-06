@@ -189,17 +189,20 @@ describe("profile", () => {
 });
 
 describe("sources and destinations", () => {
-  it("loads health and recent spots newest first", async () => {
-    fake.tables.set("ingest_health", { data: [{ source: "pota" }] });
-    fake.tables.set("recent_spots", { data: [{ id: 1 }] });
+  it("loads health and recent spots through their definer RPCs", async () => {
+    fake.rpcs.set("list_ingest_health", { data: [{ source: "pota" }] });
+    fake.rpcs.set("list_recent_spots", { data: [{ id: 1 }] });
     expect(await api.loadIngestHealth()).toEqual([{ source: "pota" }]);
     expect(await api.loadRecentSpots(5)).toEqual([{ id: 1 }]);
-    expect(fake.ops).toContainEqual(["recent_spots", "order", ["spot_time", { ascending: false }]]);
-    expect(fake.ops).toContainEqual(["recent_spots", "limit", [5]]);
+    expect(fake.client.rpc).toHaveBeenCalledWith("list_recent_spots", { max_rows: 5 });
+    await api.loadRecentSpots();
+    expect(fake.client.rpc).toHaveBeenLastCalledWith("list_recent_spots", { max_rows: 200 });
   });
 
   it("load functions reject on error", async () => {
-    for (const t of ["ingest_health", "recent_spots", "destinations"]) fake.tables.set(t, { error: boom });
+    fake.rpcs.set("list_ingest_health", { error: boom });
+    fake.rpcs.set("list_recent_spots", { error: boom });
+    fake.tables.set("destinations", { error: boom });
     await expect(api.loadIngestHealth()).rejects.toThrow("boom");
     await expect(api.loadRecentSpots()).rejects.toThrow("boom");
     await expect(api.loadDestinations()).rejects.toThrow("boom");
