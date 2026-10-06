@@ -9,8 +9,6 @@ The name is an homage to AT&T's Long Lines microwave backbone. The project moves
 signals from where they are published to where they are wanted; it does not generate spots
 itself.
 
-The hosted app lives at https://app.longlines.io.
-
 ## Why it exists
 
 Spots are how portable operators tell the world "I am on the air, here, now." They are
