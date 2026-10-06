@@ -9,7 +9,12 @@ import { useStats } from "./useStats";
 vi.mock("./useStats", () => ({ useStats: vi.fn() }));
 
 export const PAYLOAD: StatsPayload = {
-  totals: { spots: 12345, potaSpots: 10000, sotaSpots: 2345, activators: 812, references: 640 },
+  totals: {
+    spots: 12345, potaSpots: 10000, sotaSpots: 2345,
+    activations: 1500, potaActivations: 1200, sotaActivations: 300,
+    chasers: 4321, potaChasers: 4000, sotaChasers: 321,
+    activators: 812, references: 640,
+  },
   peakHour: 14,
   busiestSlot: { day: "2026-10-03", hour: 15 },
   daily: ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05"].map((day, i) => ({
@@ -19,10 +24,11 @@ export const PAYLOAD: StatsPayload = {
   sotaAssociations: [{ code: "W4C", spots: 120 }, { code: "W7A", spots: 90 }],
   bands: [{ band: "40m", pota: 3000, sota: 500 }, { band: "20m", pota: 5000, sota: 900 }],
   modes: [{ label: "CW", percent: 40 }, { label: "SSB", percent: 35 }, { label: "FT8/FT4", percent: 25 }],
-  topActivators: [{ callsign: "KK4PWJ", references: 9, spots: 120, topBand: "20m" }, { callsign: "W1AW", references: 2, spots: 10, topBand: null }],
+  topActivators: [{ callsign: "KK4PWJ", references: 9, activations: 11, spots: 120, topBand: "20m" },
+    { callsign: "W1AW", references: 2, activations: 2, spots: 10, topBand: null }],
   topReferences: [
-    { reference: "US-0817", name: "Pisgah National Forest", program: "POTA", spots: 80 },
-    { reference: "W4C/CM-001", name: null, program: "SOTA", spots: 40 },
+    { reference: "US-0817", name: "Pisgah National Forest", program: "POTA", activations: 14, spots: 80 },
+    { reference: "W4C/CM-001", name: null, program: "SOTA", activations: 6, spots: 40 },
   ],
 };
 
@@ -57,6 +63,8 @@ describe("StatsPage", () => {
     expect(screen.getByText("All times UTC. Updated hourly, last at 13:00 UTC Oct 5.")).toBeInTheDocument();
     expect(screen.getByText("12,345")).toBeInTheDocument();
     expect(screen.getByText("10,000 POTA, 2,345 SOTA")).toBeInTheDocument();
+    expect(screen.getByText("1,200 POTA, 300 SOTA")).toBeInTheDocument();
+    expect(screen.getByText("4,000 POTA, 321 SOTA")).toBeInTheDocument();
     expect(screen.getByText("14:00")).toBeInTheDocument();
     expect(screen.getByText("Busiest slot: Sat 15:00")).toBeInTheDocument();
     expect(screen.getByText("1. North Carolina")).toBeInTheDocument();

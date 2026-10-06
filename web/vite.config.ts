@@ -29,7 +29,14 @@ export default defineConfig(({ mode }) => {
         { extends: true, test: { name: "node", include: ["src/**/*.test.ts"], environment: "node" } },
         {
           extends: true,
-          test: { name: "dom", include: ["src/**/*.test.tsx"], environment: "jsdom", setupFiles: ["src/test/setup.ts"] },
+          test: {
+            name: "dom",
+            include: ["src/**/*.test.tsx"],
+            environment: "jsdom",
+            setupFiles: ["src/test/setup.ts"],
+            // MUI renders plus user-event typing run well past 5s per test under coverage on a loaded machine.
+            testTimeout: 15_000,
+          },
         },
       ],
       coverage: {

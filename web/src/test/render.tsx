@@ -76,7 +76,8 @@ export function renderPage(ui: ReactElement, options: Options = {}): Rendered {
   const app = appValue(options.app);
   const tour = tourValue(options.tour);
   const route = options.route ?? "/";
-  const user = userEvent.setup();
+  // No per-keystroke timer: typing into MUI inputs is slow enough under coverage instrumentation.
+  const user = userEvent.setup({ delay: null });
   const result = render(
     wrap(
       <MemoryRouter initialEntries={[{ pathname: route, state: options.state }]}>
