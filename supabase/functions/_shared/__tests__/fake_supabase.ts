@@ -1,0 +1,108 @@
+// Minimal stand-in for the slice of SupabaseClient the handlers and db.ts use:
+// rpc, from(...).select/eq/single/maybeSingle/insert, and a few auth calls.
+// Every call is recorded so tests can assert what was sent.
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export interface FakeError {
+  message: string;
+  code?: string;
+}
+
+export interface FakeResult {
+  data?: unknown;
+  error?: FakeError | null;
+}
+
+type Responder = FakeResult | ((args: Record<string, unknown> | undefined) => FakeResult);
+
+export interface FakeSupabaseOptions {
+  rpc?: Record<string, Responder>;
+  /** Result of the terminal call (single, maybeSingle, insert) on each table. */
+  from?: Record<string, FakeResult>;
+  getUser?: FakeResult;
+  deleteUser?: FakeResult;
+  signInWithPassword?: FakeResult;
+}
+
+export interface FakeCalls {
+  rpc: Array<{ fn: string; args: Record<string, unknown> | undefined }>;
+  from: Array<{ table: string; ops: Array<[string, unknown[]]> }>;
+  getUser: string[];
+  deleteUser: string[];
+  signInWithPassword: Array<{ email: string; password: string }>;
+}
+
+function settle(
+  result: FakeResult | undefined,
+): Promise<{ data: unknown; error: FakeError | null }> {
+  return Promise.resolve({ data: result?.data ?? null, error: result?.error ?? null });
+}
+
+export function fakeSupabase(
+  options: FakeSupabaseOptions = {},
+): { client: SupabaseClient; calls: FakeCalls } {
+  const calls: FakeCalls = {
+    rpc: [],
+    from: [],
+    getUser: [],
+    deleteUser: [],
+    signInWithPassword: [],
+  };
+
+  const fake = {
+    rpc(fn: string, args?: Record<string, unknown>) {
+      calls.rpc.push({ fn, args });
+      const responder = options.rpc?.[fn];
+      return settle(typeof responder === "function" ? responder(args) : responder);
+    },
+    from(table: string) {
+      const entry = { table, ops: [] as Array<[string, unknown[]]> };
+      calls.from.push(entry);
+      const result = options.from?.[table];
+      const builder = {
+        select(...a: unknown[]) {
+          entry.ops.push(["select", a]);
+          return builder;
+        },
+        eq(...a: unknown[]) {
+          entry.ops.push(["eq", a]);
+          return builder;
+        },
+        single() {
+          entry.ops.push(["single", []]);
+          return settle(result);
+        },
+        maybeSingle() {
+          entry.ops.push(["maybeSingle", []]);
+          return settle(result);
+        },
+        insert(...a: unknown[]) {
+          entry.ops.push(["insert", a]);
+          return settle(result);
+        },
+      };
+      return builder;
+    },
+    auth: {
+      getUser(token: string) {
+        calls.getUser.push(token);
+        return settle(options.getUser);
+      },
+      signInWithPassword(credentials: { email: string; password: string }) {
+        calls.signInWithPassword.push(credentials);
+        return settle(options.signInWithPassword);
+      },
+      admin: {
+        deleteUser(id: string) {
+          calls.deleteUser.push(id);
+          return settle(options.deleteUser);
+        },
+      },
+    },
+  };
+
+  // The fake implements only the methods the code under test calls; the cast
+  // is what lets it stand in for the full generated client type.
+  return { client: fake as unknown as SupabaseClient, calls };
+}

@@ -3,13 +3,15 @@
 
 import { createIngestDb, createServiceClient } from "./db.ts";
 import { runIngest } from "./ingest.ts";
-import type { SourceAdapter } from "./types.ts";
+import type { IngestDb, SourceAdapter } from "./types.ts";
 
-export function serveIngest(adapter: SourceAdapter): void {
-  Deno.serve(async (_req: Request): Promise<Response> => {
+export function ingestHandler(
+  adapter: SourceAdapter,
+  makeDb: () => IngestDb,
+): (req: Request) => Promise<Response> {
+  return async (_req: Request): Promise<Response> => {
     try {
-      const db = createIngestDb(createServiceClient());
-      const summary = await runIngest(adapter, db);
+      const summary = await runIngest(adapter, makeDb());
       console.log(JSON.stringify(summary));
       return Response.json(summary);
     } catch (error) {
@@ -17,5 +19,9 @@ export function serveIngest(adapter: SourceAdapter): void {
       console.error(`ingest-${adapter.source} failed: ${message}`);
       return Response.json({ source: adapter.source, error: message }, { status: 500 });
     }
-  });
+  };
+}
+
+export function serveIngest(adapter: SourceAdapter): void {
+  Deno.serve(ingestHandler(adapter, () => createIngestDb(createServiceClient())));
 }

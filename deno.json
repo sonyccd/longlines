@@ -10,8 +10,9 @@
   "tasks": {
     "test": "deno test -P supabase/functions/_shared/__tests__/",
     "check": "deno check supabase/functions/*/index.ts",
-    "lint": "deno lint supabase/functions",
-    "fmt": "deno fmt supabase/functions deno.json"
+    "lint": "deno lint supabase/functions scripts",
+    "fmt": "deno fmt supabase/functions scripts deno.json",
+    "coverage": "rm -rf coverage && deno test -P --coverage=coverage supabase/functions/_shared/__tests__/ && deno coverage --exclude=__tests__ coverage && deno coverage --lcov --output=coverage/lcov.info --exclude=__tests__ coverage && deno run --allow-read scripts/check-coverage.ts coverage/lcov.info 80"
   },
   "lint": {
     "rules": {
