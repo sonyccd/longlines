@@ -89,7 +89,8 @@ Migrations already applied to the hosted project must not be edited; add a new m
 ## Phase 3 stats rules
 
 - `stats_snapshots` is written only by `refresh_stats_snapshot()` from pg_cron; clients have
-  `select` only. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
+  `select` only. It is the one table `anon` may read: the Stats page (`/stats`) is public and
+  renders in `PublicShell` when signed out, `AppShell` when signed in. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
   `supabase/tests/stats_snapshot.test.sql`; change the SQL, the type and the test together.
 - The Stats page is deliberately fixed: no controls beyond tooltips, one request per page load.
   Do not add filters, date pickers, sorting or MUI X Pro components.
@@ -126,9 +127,11 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - `web/scripts/*.ts` are local-dev helpers behind the npm scripts, run by Node's built-in type
   stripping (erasable syntax only, `.ts` import extensions). They only talk to the local stack;
   `local-stack.ts` refuses a non-local API URL. Never add a script that deploys or pushes.
-- The guided tour lives in `web/src/tour/`. Steps and copy are in `model.ts` (the mock has no
-  tour section); `TourProvider.tsx` is the only module that imports react-joyride. Pages only add
-  `data-tour` attributes and call `useTour().report(...)`; never drive Joyride from a page.
+- The guided tour lives in `web/src/tour/`. All tour copy is in `model.ts`: the steps, the
+  "Take the tour" menu label and the ended toast (the mock has no tour section).
+  `TourProvider.tsx` is the only module that imports react-joyride. Pages and dialogs only add
+  `data-tour` attributes, call `useTour().report(...)` and read `useTour().active`; never drive
+  Joyride from a page.
 
 ## Conventions
 

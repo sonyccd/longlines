@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import { createDestination, type CreatedDestination, type DestinationType } from "../lib/api";
 import { errorText } from "../app/hooks";
+import { useTour } from "../tour/hooks";
 import { DEST_TYPES, typeLabel } from "./types";
 
 export function DestinationDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (d: CreatedDestination) => void }) {
@@ -13,6 +14,8 @@ export function DestinationDialog({ open, onClose, onCreated }: { open: boolean;
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // During the tour a tooltip sits beside the dialog; let keyboard focus reach it.
+  const { active: tourActive } = useTour();
   const t = DEST_TYPES.find((d) => d.id === type)!;
 
   const reset = () => {
@@ -40,7 +43,7 @@ export function DestinationDialog({ open, onClose, onCreated }: { open: boolean;
   };
 
   return (
-    <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={close} fullWidth maxWidth="sm" disableEnforceFocus={tourActive}>
       <DialogTitle>Add destination</DialogTitle>
       <DialogContent dividers data-tour="destination-form">
         <FormControl sx={{ mb: 2 }}>
@@ -77,8 +80,9 @@ export function DestinationDialog({ open, onClose, onCreated }: { open: boolean;
 
 /** Shows a signing secret exactly once. */
 export function SecretDialog({ secret, name, onClose }: { secret: string | null; name: string; onClose: () => void }) {
+  const { active: tourActive } = useTour();
   return (
-    <Dialog open={secret !== null} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={secret !== null} onClose={onClose} fullWidth maxWidth="sm" disableEnforceFocus={tourActive}>
       <DialogTitle>Signing secret for {name}</DialogTitle>
       <DialogContent dividers data-tour="signing-secret">
         <Alert severity="warning" sx={{ mb: 2 }}>Copy it now. This is the only time it's shown.</Alert>

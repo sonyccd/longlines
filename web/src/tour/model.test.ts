@@ -34,6 +34,16 @@ describe("STEPS", () => {
       if (s.dismissible) expect(s.advanceOn).not.toBe("next");
     }
   });
+
+  it("form steps step back when their dialog closes, and nothing else does", () => {
+    expect(STEPS.filter((s) => s.backOn).map((s) => s.id)).toEqual(["destination-form", "subscription-form"]);
+    for (const s of STEPS) {
+      if (s.backOn) {
+        expect(TOUR_EVENTS).toContain(s.backOn);
+        expect(s.backOn).not.toBe(s.advanceOn);
+      }
+    }
+  });
 });
 
 describe("reduce", () => {
@@ -56,6 +66,43 @@ describe("reduce", () => {
     expect(reduce(started(), { type: "dismiss" })).toEqual(started());
     const button = play({ type: "next" });
     expect(reduce(button, { type: "dismiss" })).toEqual(button);
+  });
+
+  it("cancelling the destination dialog returns to the Add destination step", () => {
+    const form = play({ type: "next" }, { type: "event", event: "destination-dialog-opened" });
+    const back = reduce(form, { type: "event", event: "destination-dialog-closed" });
+    expect(back.index).toBe(indexOf("add-destination"));
+    expect(back.active).toBe(true);
+    // Opening the dialog again picks the form step back up.
+    expect(reduce(back, { type: "event", event: "destination-dialog-opened" }).index).toBe(indexOf("destination-form"));
+  });
+
+  it("cancelling a dismissed form step also clears the dismissal", () => {
+    const hidden = play({ type: "next" }, { type: "event", event: "destination-dialog-opened" }, { type: "dismiss" });
+    expect(hidden.dismissed).toBe(true);
+    const back = reduce(hidden, { type: "event", event: "destination-dialog-closed" });
+    expect(back.dismissed).toBe(false);
+    expect(back.index).toBe(indexOf("add-destination"));
+  });
+
+  it("cancelling the subscription dialog returns to the New subscription step", () => {
+    const form = play(
+      { type: "next" },
+      { type: "event", event: "destination-dialog-opened" },
+      { type: "event", event: "destination-created", destinationId: "d1", secret: false },
+      { type: "event", event: "test-sent" },
+      { type: "next" },
+      { type: "event", event: "subscription-dialog-opened" },
+    );
+    expect(form.index).toBe(indexOf("subscription-form"));
+    expect(reduce(form, { type: "event", event: "subscription-dialog-closed" }).index).toBe(indexOf("new-subscription"));
+  });
+
+  it("dialog-closed events are ignored on other steps", () => {
+    const button = play({ type: "next" });
+    expect(reduce(button, { type: "event", event: "destination-dialog-closed" })).toEqual(button);
+    expect(reduce(started(), { type: "event", event: "subscription-dialog-closed" })).toEqual(started());
+    expect(reduce(INITIAL, { type: "event", event: "destination-dialog-closed" })).toEqual(INITIAL);
   });
 
   it("start resets a running tour", () => {
