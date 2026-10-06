@@ -97,6 +97,10 @@ This brings up Postgres, Auth, the API gateway, Studio and a mail catcher, and a
 migration. The output prints the local URLs and keys. Keep the `anon` and `service_role` keys
 handy; you will need both.
 
+It also loads `supabase/seed.sql`: a confirmed account to sign in with (callsign `N0SEED`,
+email `review@example.com`, password `longlines`), a week of POTA and SOTA spots, and a stats
+snapshot, so the Stats page has data straight away. `supabase db reset` reloads it.
+
 | Service | URL |
 | --- | --- |
 | API | http://127.0.0.1:54321 |
