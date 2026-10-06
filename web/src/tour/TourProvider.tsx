@@ -19,15 +19,17 @@ function body(segments: Segment[]) {
 
 function toJoyrideStep(step: TourStep): Step {
   const waits = step.advanceOn !== "next";
+  // On a dismissible step the primary button hides the tooltip instead of advancing.
+  const primary = step.dismissible ? "Got it" : step.nextLabel;
   return {
     id: step.id,
     target: step.target === null ? "body" : `[data-tour="${step.target}"]`,
     placement: step.target === null ? "center" : (step.placement ?? "bottom"),
     title: step.title,
     content: body(step.body),
-    buttons: waits ? ["skip"] : ["primary", "skip"],
+    buttons: waits && !step.dismissible ? ["skip"] : ["primary", "skip"],
     hideOverlay: step.hideOverlay ?? false,
-    locale: step.nextLabel ? { next: step.nextLabel, last: step.nextLabel } : undefined,
+    locale: primary ? { next: primary, last: primary } : undefined,
   };
 }
 
@@ -71,7 +73,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const onEvent = useCallback((data: EventData) => {
     if (data.type === EVENTS.STEP_AFTER && data.action === ACTIONS.NEXT) {
-      dispatch({ type: "next" });
+      dispatch({ type: STEPS[data.index]?.dismissible ? "dismiss" : "next" });
     } else if (data.type === EVENTS.TOUR_END) {
       dispatch({ type: "end" });
     } else if (data.type === EVENTS.TARGET_NOT_FOUND) {
@@ -93,7 +95,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       {children}
       <Joyride
         steps={steps}
-        run={!!route && location.pathname === route}
+        run={!!route && location.pathname === route && !state.dismissed}
         stepIndex={state.index}
         continuous
         onEvent={onEvent}

@@ -31,6 +31,8 @@ export interface TourStep {
   placement?: "top" | "bottom" | "left" | "right";
   /** Steps that spotlight a whole form drop the dimmed overlay so the form stays usable. */
   hideOverlay?: boolean;
+  /** Shows a "Got it" button that hides the tooltip until the step advances (event steps only). */
+  dismissible?: boolean;
 }
 
 export const TOUR_ENDED_TOAST = "Tour ended. You can take it again from the account menu.";
@@ -47,7 +49,7 @@ export const STEPS: readonly TourStep[] = [
     body: ["A destination is a place spots get delivered. Click Add destination."],
   },
   {
-    id: "destination-form", route: "/destinations", target: "destination-form", advanceOn: "destination-created", placement: "right", hideOverlay: true,
+    id: "destination-form", route: "/destinations", target: "destination-form", advanceOn: "destination-created", placement: "right", hideOverlay: true, dismissible: true,
     title: "Point it at webhook.site",
     body: [
       "Choose Webhook. Then open ", { text: "webhook.site", href: "https://webhook.site" },
@@ -77,7 +79,7 @@ export const STEPS: readonly TourStep[] = [
   {
     // Anchored to the save button, not the form: the dialog is nearly viewport-high, so a tooltip
     // beside or above the form gets pushed off screen.
-    id: "subscription-form", route: "/subscriptions", target: "subscription-save", advanceOn: "subscription-created", placement: "top", hideOverlay: true,
+    id: "subscription-form", route: "/subscriptions", target: "subscription-save", advanceOn: "subscription-created", placement: "top", hideOverlay: true, dismissible: true,
     title: "Choose what to receive",
     body: ["Name it and pick filters: sources, bands, modes, callsigns, or a park, summit, or location. Leave a filter empty to match everything. Under Send matches to, choose your webhook. The preview shows how many of the last 200 spots would have matched. Click Create subscription."],
   },
@@ -93,26 +95,34 @@ export interface TourState {
   index: number;
   /** The destination created during this tour, so the page can mark its Send test button. */
   destinationId: string | null;
+  /** The current step's tooltip was hidden with "Got it"; cleared when the step advances. */
+  dismissed: boolean;
 }
 
-export const INITIAL: TourState = { active: false, index: 0, destinationId: null };
+export const INITIAL: TourState = { active: false, index: 0, destinationId: null, dismissed: false };
 
 export type TourAction =
   | { type: "start" }
   | { type: "next" }
+  | { type: "dismiss" }
   | { type: "end" }
   | { type: "event"; event: TourEvent; destinationId?: string; secret?: boolean };
 
 function advance(state: TourState, to: number): TourState {
-  return to >= STEPS.length ? { ...state, active: false } : { ...state, index: to };
+  return to >= STEPS.length ? { ...state, active: false } : { ...state, index: to, dismissed: false };
 }
 
 export function reduce(state: TourState, action: TourAction): TourState {
   switch (action.type) {
     case "start":
-      return { active: true, index: 0, destinationId: null };
+      return { active: true, index: 0, destinationId: null, dismissed: false };
     case "end":
       return state.active ? { ...state, active: false } : state;
+    case "dismiss": {
+      const step = STEPS[state.index];
+      if (!state.active || !step?.dismissible || state.dismissed) return state;
+      return { ...state, dismissed: true };
+    }
     case "next": {
       const step = STEPS[state.index];
       if (!state.active || !step || step.advanceOn !== "next") return state;

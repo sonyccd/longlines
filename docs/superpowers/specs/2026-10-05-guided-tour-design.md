@@ -94,7 +94,10 @@ Copy:
    menu." Button: Done.
 
 Event-driven steps (2, 3, 4, 5, 7, 8) show no Next button; the user advances by
-doing the action. Every step shows Skip tour. There is no Back button: going
+doing the action. The two form steps (3 and 8) show a "Got it" button that
+hides the tooltip until the step advances: on a phone the tooltip otherwise
+covers the form's last fields, which can never scroll out from under it. Every
+step shows Skip tour. There is no Back button: going
 back would point at UI that is no longer in that state (a dialog that has
 closed, a destination that already exists).
 
@@ -112,8 +115,9 @@ react-joyride.
   centered), `title`, `body` (copy as plain strings plus a `link` field for step
   3), `advanceOn` (`"next"` or a `TourEvent`).
 - `STEPS`: the nine steps in order.
-- `TourState`: `{ active: boolean; index: number; destinationId: string | null }`.
-- `TourAction`: `start`, `next`, `end`, and
+- `TourState`: `{ active: boolean; index: number; destinationId: string | null; dismissed: boolean }`.
+- `TourAction`: `start`, `next`, `end`, `dismiss` (sets `dismissed` on a
+  dismissible step; any advance clears it), and
   `{ type: "event"; event: TourEvent; destinationId?: string; secret?: boolean }`.
 - `reduce(state, action)`: `start` sets `active` and `index: 0`; `next` moves
   only on steps with `advanceOn: "next"`; `event` advances only when the

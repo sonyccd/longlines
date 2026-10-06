@@ -27,11 +27,35 @@ describe("STEPS", () => {
       if (s.target === null) expect(s.advanceOn).toBe("next");
     }
   });
+
+  it("lets the form steps be dismissed, and only event steps", () => {
+    expect(STEPS.filter((s) => s.dismissible).map((s) => s.id)).toEqual(["destination-form", "subscription-form"]);
+    for (const s of STEPS) {
+      if (s.dismissible) expect(s.advanceOn).not.toBe("next");
+    }
+  });
 });
 
 describe("reduce", () => {
   it("start activates at the first step", () => {
-    expect(started()).toEqual({ active: true, index: 0, destinationId: null });
+    expect(started()).toEqual({ active: true, index: 0, destinationId: null, dismissed: false });
+  });
+
+  it("dismiss hides a dismissible step until it advances", () => {
+    const form = play({ type: "next" }, { type: "event", event: "destination-dialog-opened" });
+    expect(form.index).toBe(indexOf("destination-form"));
+    const hidden = reduce(form, { type: "dismiss" });
+    expect(hidden.dismissed).toBe(true);
+    expect(hidden.index).toBe(form.index);
+    const next = reduce(hidden, { type: "event", event: "destination-created", destinationId: "d1", secret: true });
+    expect(next.dismissed).toBe(false);
+    expect(next.index).toBe(indexOf("secret"));
+  });
+
+  it("dismiss is ignored on other steps", () => {
+    expect(reduce(started(), { type: "dismiss" })).toEqual(started());
+    const button = play({ type: "next" });
+    expect(reduce(button, { type: "dismiss" })).toEqual(button);
   });
 
   it("start resets a running tour", () => {
