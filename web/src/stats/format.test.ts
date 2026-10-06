@@ -3,7 +3,12 @@ import { dayLabel, fillOpacity, fmt, hasData, hourLabel, topStates, updatedCapti
 import type { LatestStats, StatsPayload } from "./types";
 
 const payload = (spots: number): StatsPayload => ({
-  totals: { spots, potaSpots: spots, sotaSpots: 0, activators: 0, references: 0 },
+  totals: {
+    spots, potaSpots: spots, sotaSpots: 0,
+    activations: 0, potaActivations: 0, sotaActivations: 0,
+    chasers: 0, potaChasers: 0, sotaChasers: 0,
+    activators: 0, references: 0,
+  },
   peakHour: 0,
   busiestSlot: { day: "2026-09-28", hour: 0 },
   daily: [],
