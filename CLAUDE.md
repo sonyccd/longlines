@@ -18,7 +18,8 @@ dependencies without a comment saying why.
 ```sh
 deno task test        # unit tests; -P loads the permission set from deno.json (net/env/read for http + fixture tests)
 deno test -P supabase/functions/_shared/__tests__/pota.test.ts --filter "hashes"   # one test
-deno task check       # type-check both Edge Function entrypoints
+deno task coverage    # tests + coverage; fails below 80% lines or if a module is never loaded (CI runs this)
+deno task check       # type-check the Edge Function entrypoints
 deno task lint
 deno task fmt
 
@@ -33,7 +34,8 @@ supabase test db                       # pgTAP suites in supabase/tests/*.test.s
 cd web && npm run dev:full             # stack + web/.env.local + Vite + functions serve (README lists all npm shortcuts)
 cd web && npm run test:all             # every CI check against the local stack, with a summary; :fresh resets the db first
 cd web && npm run dev                  # web app on http://localhost:5173 (needs web/.env.local)
-cd web && npm test                     # Vitest for web/src/lib
+cd web && npm test                     # Vitest: *.test.ts in node, *.test.tsx in jsdom
+cd web && npm run coverage             # same, failing below 80% on any metric (CI runs this)
 cd web && npm run build                # tsc -b + vite build; zero TS errors required
 cd web && npm run lint                 # oxlint
 supabase gen types typescript --local > web/src/lib/database.types.ts   # after schema changes
@@ -47,7 +49,9 @@ Local invocation: `curl -X POST http://127.0.0.1:54321/functions/v1/ingest-pota 
 ## Architecture
 
 - `supabase/functions/_shared/ingest.ts` is the orchestrator; `ingest-pota/index.ts` and
-  `ingest-sotawatch/index.ts` are three-line shells around `serve.ts`. Behavior changes go in
+  `ingest-sotawatch/index.ts` are three-line shells around `serve.ts`. The other entrypoints are
+  `Deno.serve` shells around `_shared/handlers/*.ts`, which take their clients and sender as
+  arguments so tests can pass fakes (`__tests__/fake_supabase.ts`). Behavior changes go in
   `_shared`, never in the entrypoints.
 - Source adapters (`pota.ts`, `sotawatch.ts`) implement `SourceAdapter` from `types.ts`:
   `parseFeed` and `normalize` are pure and tested against fixtures; only `fetchSpots`/`fetchEpoch`
@@ -133,6 +137,17 @@ Migrations already applied to the hosted project must not be edited; add a new m
   `TourProvider.tsx` is the only module that imports react-joyride. Pages and dialogs only add
   `data-tour` attributes, call `useTour().report(...)` and read `useTour().active`; never drive
   Joyride from a page.
+
+## Testing
+
+- Both suites gate at 80% in CI. The Deno gate (`scripts/check-coverage.ts`) also lists any
+  `supabase/functions` module no test imports, since `deno coverage` silently omits those.
+- Deno excludes modules whose names end in `test.ts` from coverage, so never name a source file
+  `*_test.ts` (hence `handlers/test_delivery.ts` for the send-test function).
+- Web component tests render through `web/src/test/render.tsx` (theme, MemoryRouter, stub App and
+  Tour contexts) and `vi.mock("../lib/api")` with explicit factories. `setMobile(true)` from
+  `test/media.ts` switches `useMediaQuery` to the phone layout. Pure `*.test.ts` files stay in node:
+  jsdom applies Vite's browser file guard, which blocks `states.test.ts` reading the migrations.
 
 ## Conventions
 

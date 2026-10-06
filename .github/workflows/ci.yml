@@ -14,10 +14,11 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno fmt --check supabase/functions deno.json
+      - run: deno fmt --check supabase/functions scripts deno.json
       - run: deno task lint
       - run: deno task check
-      - run: deno task test
+      # Runs the tests and fails below 80% line coverage or when a module is never loaded.
+      - run: deno task coverage
 
   migrations:
     name: Migrations on fresh Postgres
@@ -50,7 +51,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test
+      # Runs the tests and fails below 80% lines, statements, functions or branches.
+      - run: npm run coverage
       # Build needs the public Supabase values; placeholders are fine for type-checking and bundling.
       - run: npm run build
         env:

@@ -1,0 +1,183 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import type { Session } from "@supabase/supabase-js";
+import App from "./App";
+import { WELCOME_KEY } from "./app/hooks";
+import { useSession } from "./auth/useSession";
+import { loadDestinations, loadProfile, loadSubscriptions, type Destination } from "./lib/api";
+import { PROFILE, SESSION } from "./test/render";
+import { useTour } from "./tour/hooks";
+
+vi.mock("./auth/useSession", () => ({ useSession: vi.fn() }));
+vi.mock("./lib/api", () => ({ loadProfile: vi.fn(), loadDestinations: vi.fn(), loadSubscriptions: vi.fn() }));
+vi.mock("@vercel/speed-insights/react", () => ({ SpeedInsights: () => null }));
+vi.mock("@vercel/analytics/react", () => ({ Analytics: () => null }));
+vi.mock("react-joyride", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-joyride")>()),
+  Joyride: () => null,
+}));
+
+// App's job is routing and loading shared data; each page has its own tests.
+// The stubs show which page rendered and the props App passed it.
+vi.mock("./auth/SignInPage", () => ({ SignInPage: () => <p>sign-in page</p> }));
+vi.mock("./auth/CheckEmailPage", () => ({ CheckEmailPage: () => <p>check-email page</p> }));
+vi.mock("./auth/ResetPasswordPage", () => ({ ResetPasswordPage: () => <p>reset page</p> }));
+vi.mock("./auth/SetPasswordPage", () => ({ SetPasswordPage: () => <p>set-password page</p> }));
+vi.mock("./sources/SourcesPage", () => ({
+  SourcesPage: ({ prefs }: { prefs: { utcTimes: boolean; timezone: string } }) => <p>sources page {prefs.timezone}</p>,
+}));
+vi.mock("./destinations/DestinationsPage", () => ({
+  DestinationsPage: ({ dests, loading }: { dests: Destination[]; loading: boolean }) => (
+    <p>destinations page {loading ? "loading" : dests.map((d) => d.name).join(",")}</p>
+  ),
+}));
+vi.mock("./subscriptions/SubscriptionsPage", () => ({
+  SubscriptionsPage: ({ subs }: { subs: unknown[] }) => <p>subscriptions page {subs.length}</p>,
+}));
+vi.mock("./stats/StatsPage", () => ({ StatsPage: () => <p>stats page</p> }));
+vi.mock("./account/AccountPage", () => ({ AccountPage: () => <p>account page</p> }));
+vi.mock("./tour/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./tour/hooks")>();
+  return { useTour: vi.fn(actual.useTour) };
+});
+
+function session(value: Session | null, loading = false) {
+  vi.mocked(useSession).mockReturnValue({ session: value, loading });
+}
+
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
+
+const DEST = { id: "d1", name: "Shack", health: "ok" } as Destination;
+
+beforeEach(() => {
+  localStorage.clear();
+  session(SESSION);
+  vi.mocked(loadProfile).mockReset().mockResolvedValue({ ...PROFILE, timezone: "Asia/Tokyo" });
+  vi.mocked(loadDestinations).mockReset().mockResolvedValue([DEST]);
+  vi.mocked(loadSubscriptions).mockReset().mockResolvedValue([]);
+});
+
+describe("App routing", () => {
+  it("sends signed-out visitors to sign in", async () => {
+    session(null);
+    renderAt("/destinations");
+    expect(await screen.findByText("sign-in page")).toBeInTheDocument();
+  });
+
+  it("shows progress while the session is loading", () => {
+    session(null, true);
+    renderAt("/sources");
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  });
+
+  it("shows progress on public-only and stats routes while the session loads", () => {
+    session(null, true);
+    renderAt("/signin");
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  });
+
+  it("sends signed-in users from sign in to Sources", async () => {
+    renderAt("/signin");
+    expect(await screen.findByText("sources page Asia/Tokyo")).toBeInTheDocument();
+  });
+
+  it("redirects unknown paths to Sources", async () => {
+    renderAt("/nope");
+    expect(await screen.findByText("sources page Asia/Tokyo")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["/check-email", "check-email page"],
+    ["/reset-password", "reset page"],
+    ["/set-password", "set-password page"],
+  ])("serves %s to anyone", async (path, text) => {
+    session(null);
+    renderAt(path);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  });
+
+  it("serves Stats publicly without the app shell", async () => {
+    session(null);
+    renderAt("/stats");
+    expect(await screen.findByText("stats page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("serves Stats inside the app shell when signed in", async () => {
+    renderAt("/stats");
+    expect(await screen.findByText("stats page")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+  });
+
+  it("waits for the profile before rendering a signed-in page", async () => {
+    vi.mocked(loadProfile).mockReturnValue(new Promise(() => {}));
+    renderAt("/account");
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    expect(screen.queryByText("account page")).not.toBeInTheDocument();
+  });
+
+  it("loads destinations and subscriptions for the signed-in pages", async () => {
+    renderAt("/destinations");
+    expect(await screen.findByText("destinations page Shack")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["/subscriptions", "subscriptions page 0"],
+    ["/account", "account page"],
+  ])("renders %s", async (path, text) => {
+    renderAt(path);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  });
+
+  it("toasts when shared data fails to load", async () => {
+    vi.mocked(loadDestinations).mockRejectedValue(new Error("x"));
+    renderAt("/destinations");
+    expect(await screen.findByText("Couldn't load your destinations and subscriptions.")).toBeInTheDocument();
+  });
+
+  it("marks Destinations in the nav when one is failing", async () => {
+    vi.mocked(loadDestinations).mockResolvedValue([{ ...DEST, health: "failing" }]);
+    const { container } = renderAt("/sources");
+    await screen.findByText("sources page Asia/Tokyo");
+    await waitFor(() => expect(container.querySelector(".MuiBadge-dot:not(.MuiBadge-invisible)")).not.toBeNull());
+  });
+});
+
+describe("welcome tour", () => {
+  it("starts the tour once for the account that just signed up", async () => {
+    localStorage.setItem(WELCOME_KEY, PROFILE.callsign);
+    const start = vi.fn();
+    vi.mocked(useTour).mockReturnValue({ active: false, destinationId: null, start, report: vi.fn() });
+    renderAt("/sources");
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    expect(localStorage.getItem(WELCOME_KEY)).toBeNull();
+  });
+
+  it("does not start for a different account", async () => {
+    localStorage.setItem(WELCOME_KEY, "W1AW");
+    const start = vi.fn();
+    vi.mocked(useTour).mockReturnValue({ active: false, destinationId: null, start, report: vi.fn() });
+    renderAt("/sources");
+    await screen.findByText("sources page Asia/Tokyo");
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when storage is unavailable", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const start = vi.fn();
+    vi.mocked(useTour).mockReturnValue({ active: false, destinationId: null, start, report: vi.fn() });
+    renderAt("/sources");
+    await screen.findByText("sources page Asia/Tokyo");
+    await act(() => Promise.resolve());
+    expect(start).not.toHaveBeenCalled();
+  });
+});
