@@ -26,7 +26,7 @@ const GRID = {
 } as const;
 
 const ACTIVATOR_COLUMNS: GridColDef[] = [
-  { field: "callsign", headerName: "Callsign", flex: 1, minWidth: 100, sortable: false },
+  { field: "callsign", headerName: "Callsign", flex: 1, minWidth: 70, sortable: false },
   { field: "references", headerName: "Refs", type: "number", width: 70, sortable: false },
   { field: "spots", headerName: "Spots", type: "number", width: 80, sortable: false },
   { field: "topBand", headerName: "Top band", width: 90, sortable: false },

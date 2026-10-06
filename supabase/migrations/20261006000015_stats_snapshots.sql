@@ -276,7 +276,7 @@ begin
            ) as v
     from top_reference_rows
   )
-  -- Every CTE below is a single-row aggregate, so the cross joins yield one row.
+  -- Every CTE above is a single-row aggregate, so the cross joins yield one row.
   select
     v_window_start,
     v_window_end,
