@@ -79,7 +79,10 @@ Migrations already applied to the hosted project must not be edited; add a new m
   revoked on purpose; the only direct client write is `subscriptions.enabled`.
 - `destinations.url` and `signing_secret` are excluded from the column grant. Never add them to a
   view or RPC result except the one-time return from `create_destination`/`rotate_signing_secret`.
-- `recent_spots` is the only client view over `raw_spots`; keep `raw_payload` out of it.
+- `recent_spots` is the only client view over `raw_spots`; keep `raw_payload` out of it. It and
+  `ingest_health` are invoker views with no client grants; clients read them through the definer
+  RPCs `list_recent_spots` / `list_ingest_health`. Never make a view `security_invoker = false`
+  (the Supabase linter flags it).
 - Service-role-only tables (`deliveries`, `subscription_quiet`, `sign_in_attempts`) have RLS on and
   no policies. Functions that touch `auth.users` are `security definer` with execute granted only
   to `service_role`.
