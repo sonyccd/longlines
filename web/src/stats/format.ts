@@ -33,10 +33,11 @@ export function hasData(stats: LatestStats | null): stats is LatestStats {
   return stats !== null && stats.payload.totals.spots > 0;
 }
 
-/** Busiest states: spots desc, ties by code so the list is stable. */
+/** Busiest states: spots desc, ties by code so the list is stable. potaByState is zero-filled, so idle states are dropped. */
 export function topStates(byState: Record<string, number>, limit = 10): { code: string; spots: number }[] {
   return Object.entries(byState)
     .map(([code, spots]) => ({ code, spots }))
+    .filter((s) => s.spots > 0)
     .sort((a, b) => b.spots - a.spots || a.code.localeCompare(b.code))
     .slice(0, limit);
 }
