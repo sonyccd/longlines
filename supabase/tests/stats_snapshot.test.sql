@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 \ir helpers/users.psql
-select plan(56);
+select plan(58);
 
 -- Start from empty tables so every count below is exact. Both are empty on a
 -- fresh CI database; locally the cron jobs may have filled them. deliveries
@@ -127,7 +127,7 @@ select is(pg_temp.snap() -> 'topReferences' -> 1, '{"reference":"US-2763","name"
 select is(pg_temp.snap() #>> '{topReferences,2,reference}', 'US-0003', 'equal spot counts order by reference asc');
 select is(pg_temp.snap() #>> '{topReferences,7,reference}', 'W4C/CM-001', 'the eighth slot goes to the alphabetically first of the one-spot references');
 
--- RLS: signed-in users read every row; nobody writes or refreshes through the API.
+-- RLS: anyone reads every row (the Stats page is public); nobody writes or refreshes through the API.
 select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
 select is((select count(*) from stats_snapshots), 1::bigint, 'signed-in users can read snapshots');
 select throws_ok($$ insert into stats_snapshots (window_start, window_end, payload) values (now(), now(), '{}') $$, '42501', null, 'clients cannot insert snapshots');
@@ -136,7 +136,9 @@ select throws_ok('select refresh_stats_snapshot()', '42501', null, 'clients cann
 reset role;
 
 set local role anon;
-select throws_ok('select * from stats_snapshots', '42501', null, 'anon cannot read snapshots');
+select is((select count(*) from stats_snapshots), 1::bigint, 'anon can read snapshots');
+select throws_ok($$ insert into stats_snapshots (window_start, window_end, payload) values (now(), now(), '{}') $$, '42501', null, 'anon cannot insert snapshots');
+select throws_ok('select refresh_stats_snapshot()', '42501', null, 'anon cannot run the refresh');
 reset role;
 
 -- Window boundaries: exactly window_end is out, exactly window_start is in.

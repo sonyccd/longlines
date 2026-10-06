@@ -10,6 +10,7 @@ import { CheckEmailPage } from "./auth/CheckEmailPage";
 import { ResetPasswordPage } from "./auth/ResetPasswordPage";
 import { SetPasswordPage } from "./auth/SetPasswordPage";
 import { AppShell } from "./layout/AppShell";
+import { PublicShell } from "./layout/PublicShell";
 import { SourcesPage } from "./sources/SourcesPage";
 import { DestinationsPage } from "./destinations/DestinationsPage";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
@@ -55,7 +56,7 @@ function Router() {
       <Route path="/sources" element={<RequireAuth page="sources" />} />
       <Route path="/subscriptions" element={<RequireAuth page="subscriptions" />} />
       <Route path="/destinations" element={<RequireAuth page="destinations" />} />
-      <Route path="/stats" element={<RequireAuth page="stats" />} />
+      <Route path="/stats" element={<StatsRoute />} />
       <Route path="/account" element={<RequireAuth page="account" />} />
       <Route path="*" element={<Navigate to="/sources" replace />} />
     </Routes>
@@ -71,6 +72,14 @@ function PublicOnly({ children }: { children: ReactNode }) {
 }
 
 type Page = "sources" | "subscriptions" | "destinations" | "stats" | "account";
+
+/** Stats is public: signed-in users see it inside the app, everyone else in the public shell. */
+function StatsRoute() {
+  const { session, sessionLoading } = useApp();
+  if (sessionLoading) return <LinearProgress />;
+  if (!session) return <PublicShell><StatsPage /></PublicShell>;
+  return <RequireAuth page="stats" />;
+}
 
 function RequireAuth({ page }: { page: Page }) {
   const { session, sessionLoading, profile } = useApp();
