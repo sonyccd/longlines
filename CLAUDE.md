@@ -87,7 +87,8 @@ Migrations already applied to the hosted project must not be edited; add a new m
 ## Phase 3 stats rules
 
 - `stats_snapshots` is written only by `refresh_stats_snapshot()` from pg_cron; clients have
-  `select` only. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
+  `select` only. It is the one table `anon` may read: the Stats page (`/stats`) is public and
+  renders in `PublicShell` when signed out, `AppShell` when signed in. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
   `supabase/tests/stats_snapshot.test.sql`; change the SQL, the type and the test together.
 - The Stats page is deliberately fixed: no controls beyond tooltips, one request per page load.
   Do not add filters, date pickers, sorting or MUI X Pro components.
