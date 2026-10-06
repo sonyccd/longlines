@@ -53,6 +53,14 @@ begin
   -- Health view reads.
   select count(*) into n from ingest_health;
   assert n = 2, 'ingest_health should have one row per source';
+
+  -- Stats snapshot: cron job exists and the refresh inserts one row.
+  assert exists (select 1 from cron.job where jobname = 'refresh-stats-snapshot' and schedule = '5 * * * *'),
+    'refresh-stats-snapshot should run at five past every hour';
+  select count(*) into n from stats_snapshots;
+  perform public.refresh_stats_snapshot();
+  assert (select count(*) from stats_snapshots) = least(n + 1, 48),
+    format('refresh_stats_snapshot should insert one row (had %s)', n);
 end $$;
 
 -- anon must not be able to read the tables.

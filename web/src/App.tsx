@@ -13,6 +13,7 @@ import { AppShell } from "./layout/AppShell";
 import { SourcesPage } from "./sources/SourcesPage";
 import { DestinationsPage } from "./destinations/DestinationsPage";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
+import { StatsPage } from "./stats/StatsPage";
 import { AccountPage } from "./account/AccountPage";
 import { loadDestinations, loadSubscriptions, type Destination, type SubscriptionWithLinks } from "./lib/api";
 import type { TimePrefs } from "./lib/time";
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/sources" element={<RequireAuth page="sources" />} />
       <Route path="/subscriptions" element={<RequireAuth page="subscriptions" />} />
       <Route path="/destinations" element={<RequireAuth page="destinations" />} />
+      <Route path="/stats" element={<RequireAuth page="stats" />} />
       <Route path="/account" element={<RequireAuth page="account" />} />
       <Route path="*" element={<Navigate to="/sources" replace />} />
     </Routes>
@@ -77,7 +79,7 @@ function PublicOnly({ children }: { children: ReactNode }) {
   return children;
 }
 
-type Page = "sources" | "subscriptions" | "destinations" | "account";
+type Page = "sources" | "subscriptions" | "destinations" | "stats" | "account";
 
 function RequireAuth({ page }: { page: Page }) {
   const { session, sessionLoading, profile } = useApp();
@@ -135,6 +137,7 @@ function SignedIn({ page }: { page: Page }) {
         <SubscriptionsPage subs={subs} dests={dests} loading={loading} reload={reload} prefs={prefs} fullScreen={mobile} />
       )}
       {page === "destinations" && <DestinationsPage dests={dests} subs={subs} loading={loading} reload={reload} />}
+      {page === "stats" && <StatsPage />}
       {page === "account" && <AccountPage profile={profile} />}
     </AppShell>
   );
