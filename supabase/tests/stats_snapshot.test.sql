@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 \ir helpers/users.psql
-select plan(58);
+select plan(66);
 
 -- Start from empty tables so every count below is exact. Both are empty on a
 -- fresh CI database; locally the cron jobs may have filled them. deliveries
@@ -31,21 +31,24 @@ values
   -- Outside the window: today (after window_end) and eight days ago. Both are in WY so a leak shows up in potaByState too.
   ('pota', 'x1', 'x1', pg_temp.at_utc(7, 1),   'XX1OUT', null, 14062, '20m', 'cw', '', 'US-9999', 'Out Park', 'US-WY', null, '{}'),
   ('pota', 'x2', 'x2', pg_temp.at_utc(-1, 12), 'XX1OUT', null, 14062, '20m', 'cw', '', 'US-9999', 'Out Park', 'US-WY', null, '{}'),
-  -- Day 1: KK4PWJ at a park spanning NC and VA. The newest row has no park name.
-  ('pota', 'p1', 'p1', pg_temp.at_utc(1, 20), 'KK4PWJ', null, 14062, '20m', 'cw',  '', 'US-2763', 'Old Park Name', 'US-NC,US-VA', null, '{}'),
-  ('pota', 'p2', 'p2', pg_temp.at_utc(1, 21), 'KK4PWJ', null, 14062, '20m', 'cw',  '', 'US-2763', 'New Park Name', 'US-NC,US-VA', null, '{}'),
-  ('pota', 'p3', 'p3', pg_temp.at_utc(1, 22), 'KK4PWJ', null, 7185,  '40m', 'ssb', '', 'US-2763', null,            'US-NC,US-VA', null, '{}'),
-  -- Day 2: N4DXX; usb and lsb both land in SSB. One location has a space after the comma.
-  ('pota', 'p4', 'p4', pg_temp.at_utc(2, 20), 'N4DXX', null, 7185, '40m', 'usb', '', 'US-0817', 'Park B', 'US-NC, US-GA', null, '{}'),
-  ('pota', 'p5', 'p5', pg_temp.at_utc(2, 10), 'N4DXX', null, 7185, '40m', 'lsb', '', 'US-0817', 'Park B', 'US-NC',        null, '{}'),
-  -- Day 3: a Canadian park with no band (ignored by potaByState and bands) and a 70cm FM spot (not one of the eleven bands).
+  -- Day 1: KK4PWJ at a park spanning NC and VA. The newest row has no park name. Three spots, one
+  -- activation; K1GMS spots twice and the third spot is a self-spot (not a chaser).
+  ('pota', 'p1', 'p1', pg_temp.at_utc(1, 20), 'KK4PWJ', 'K1GMS',  14062, '20m', 'cw',  '', 'US-2763', 'Old Park Name', 'US-NC,US-VA', null, '{}'),
+  ('pota', 'p2', 'p2', pg_temp.at_utc(1, 21), 'KK4PWJ', 'K1GMS',  14062, '20m', 'cw',  '', 'US-2763', 'New Park Name', 'US-NC,US-VA', null, '{}'),
+  ('pota', 'p3', 'p3', pg_temp.at_utc(1, 22), 'KK4PWJ', 'KK4PWJ', 7185,  '40m', 'ssb', '', 'US-2763', null,            'US-NC,US-VA', null, '{}'),
+  -- Days 2 and 3: N4DXX at the same park on two days (one reference, two activations); usb and lsb
+  -- both land in SSB. One location has a space after the comma. K1GMS chases again, VE3ABC once.
+  ('pota', 'p4', 'p4', pg_temp.at_utc(2, 20), 'N4DXX', 'K1GMS',  7185, '40m', 'usb', '', 'US-0817', 'Park B', 'US-NC, US-GA', null, '{}'),
+  ('pota', 'p5', 'p5', pg_temp.at_utc(3, 10), 'N4DXX', 'VE3ABC', 7185, '40m', 'lsb', '', 'US-0817', 'Park B', 'US-NC',        null, '{}'),
+  -- Day 3: a Canadian park with no band (ignored by potaByState and bands) and a 70cm FM spot (not one of the eleven bands). No spotter.
   ('pota', 'p6', 'p6', pg_temp.at_utc(3, 20), 'VE3ABC', null, 14074,  null,   'ft8', '', 'CA-1234', 'Canada Park', 'CA-ON', null, '{}'),
   ('pota', 'p7', 'p7', pg_temp.at_utc(3, 9),  'W1AW',   null, 446000, '70cm', 'fm',  '', 'US-0001', 'Park C',      'US-MA', null, '{}'),
   -- Day 4: W1AW on three references; one spot has no mode.
   ('pota', 'p8',  'p8',  pg_temp.at_utc(4, 20), 'W1AW', null, 14080, '20m', 'ft4', '', 'US-0002', 'Park D', 'US-MA', null, '{}'),
   ('pota', 'p9',  'p9',  pg_temp.at_utc(4, 11), 'W1AW', null, 14062, '20m', null,  '', 'US-0003', 'Park E', 'US-MA', null, '{}'),
   ('pota', 'p10', 'p10', pg_temp.at_utc(4, 20), 'W1AW', null, 14074, '20m', 'ft8', '', 'US-0003', 'Park E', 'US-MA', null, '{}'),
-  -- Days 5 and 6: SOTA. W4C twice; SP four times in one hour, the busiest slot.
+  -- Days 5 and 6: SOTA. W4C twice; SP four times in one hour, the busiest slot. SQ1GPR spotting
+  -- SQ1GPR/P is a self-spot despite the suffix, so W4ABC is the only SOTA chaser.
   ('sotawatch', 's1', 's1', pg_temp.at_utc(5, 12), 'W4/G4OBK', 'W4ABC',  7032,   '40m', 'cw',  '', null, null, null, 'W4C/CM-001', '{}'),
   ('sotawatch', 's2', 's2', pg_temp.at_utc(5, 13), 'W4/G4OBK', 'W4ABC',  7032,   '40m', 'cw',  '', null, null, null, 'W4C/CM-002', '{}'),
   ('sotawatch', 's3', 's3', pg_temp.at_utc(6, 14), 'SQ1GPR/P', 'SQ1GPR', 7097,   '40m', 'ssb', '', null, null, null, 'SP/SS-004',  '{}'),
@@ -71,6 +74,16 @@ select is((pg_temp.snap() #>> '{totals,potaSpots}')::int, 10, 'totals.potaSpots'
 select is((pg_temp.snap() #>> '{totals,sotaSpots}')::int, 6, 'totals.sotaSpots');
 select is((pg_temp.snap() #>> '{totals,activators}')::int, 6, 'totals.activators counts distinct callsigns as stored');
 select is((pg_temp.snap() #>> '{totals,references}')::int, 9, 'totals.references is distinct POTA refs plus distinct SOTA refs');
+-- activations: distinct (callsign, reference, UTC day). N4DXX at US-0817 on two days is two activations
+-- for one reference; SQ1GPR/P's four spots in one hour are one.
+select is((pg_temp.snap() #>> '{totals,activations}')::int, 10, 'totals.activations: 7 POTA + 3 SOTA, one more than references');
+select is((pg_temp.snap() #>> '{totals,potaActivations}')::int, 7, 'totals.potaActivations');
+select is((pg_temp.snap() #>> '{totals,sotaActivations}')::int, 3, 'totals.sotaActivations');
+-- chasers: distinct spotters, excluding null and self-spots (spotter equal to any '/'-separated part of
+-- the activator callsign). K1GMS is counted once across three spots; KK4PWJ and SQ1GPR are self-spots.
+select is((pg_temp.snap() #>> '{totals,chasers}')::int, 3, 'totals.chasers: K1GMS, VE3ABC, W4ABC');
+select is((pg_temp.snap() #>> '{totals,potaChasers}')::int, 2, 'totals.potaChasers excludes the exact self-spot');
+select is((pg_temp.snap() #>> '{totals,sotaChasers}')::int, 1, 'totals.sotaChasers excludes the suffixed self-spot');
 
 -- peakHour sums over the week (hour 20: five spots on four days); busiestSlot is one bucket (day 6, hour 14: four spots).
 select is((pg_temp.snap() ->> 'peakHour')::int, 20, 'peakHour is the hour with most spots across the whole window');
@@ -112,8 +125,9 @@ select is((select sum((e ->> 'percent')::int) from jsonb_array_elements(pg_temp.
 
 -- topActivators: references desc, then spots desc, then callsign.
 select is(jsonb_array_length(pg_temp.snap() -> 'topActivators'), 6, 'one entry per activator when there are fewer than 8');
-select is(pg_temp.snap() -> 'topActivators' -> 0, '{"callsign":"W1AW","references":3,"spots":4,"topBand":"20m"}'::jsonb,
+select is(pg_temp.snap() -> 'topActivators' -> 0, '{"callsign":"W1AW","references":3,"activations":3,"spots":4,"topBand":"20m"}'::jsonb,
           'most references first; topBand is the band with the most spots (20m x3 over 70cm x1)');
+select is((pg_temp.snap() #>> '{topActivators,4,activations}')::int, 2, 'N4DXX has two activations at one reference');
 select is(pg_temp.snap() #>> '{topActivators,2,callsign}', 'SQ1GPR/P', 'tie on references is broken by spots desc (4 spots ranks above 3)');
 select is(pg_temp.snap() #>> '{topActivators,3,callsign}', 'KK4PWJ', 'KK4PWJ follows with one reference and three spots');
 select is(pg_temp.snap() #>> '{topActivators,3,topBand}', '20m', 'topBand picks 20m (2) over 40m (1) for KK4PWJ');
@@ -121,10 +135,12 @@ select is(pg_temp.snap() #> '{topActivators,5,topBand}', 'null'::jsonb, 'an acti
 
 -- topReferences: spots desc then reference asc, capped at 8.
 select is(jsonb_array_length(pg_temp.snap() -> 'topReferences'), 8, 'topReferences is capped at 8');
-select is(pg_temp.snap() -> 'topReferences' -> 0, '{"reference":"SP/SS-004","name":null,"program":"SOTA","spots":4}'::jsonb, 'SOTA reference has a null name');
-select is(pg_temp.snap() -> 'topReferences' -> 1, '{"reference":"US-2763","name":"New Park Name","program":"POTA","spots":3}'::jsonb,
+select is(pg_temp.snap() -> 'topReferences' -> 0, '{"reference":"SP/SS-004","name":null,"program":"SOTA","activations":1,"spots":4}'::jsonb, 'SOTA reference has a null name');
+select is(pg_temp.snap() -> 'topReferences' -> 1, '{"reference":"US-2763","name":"New Park Name","program":"POTA","activations":1,"spots":3}'::jsonb,
           'POTA name is the most recent non-null park name (the newer null row is skipped)');
 select is(pg_temp.snap() #>> '{topReferences,2,reference}', 'US-0003', 'equal spot counts order by reference asc');
+select is(pg_temp.snap() -> 'topReferences' -> 3, '{"reference":"US-0817","name":"Park B","program":"POTA","activations":2,"spots":2}'::jsonb,
+          'a park activated on two days has two activations');
 select is(pg_temp.snap() #>> '{topReferences,7,reference}', 'W4C/CM-001', 'the eighth slot goes to the alphabetically first of the one-spot references');
 
 -- RLS: anyone reads every row (the Stats page is public); nobody writes or refreshes through the API.

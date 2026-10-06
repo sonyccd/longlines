@@ -28,6 +28,7 @@ const GRID = {
 const ACTIVATOR_COLUMNS: GridColDef[] = [
   { field: "callsign", headerName: "Callsign", flex: 1, minWidth: 70, sortable: false },
   { field: "references", headerName: "Refs", type: "number", width: 70, sortable: false },
+  { field: "activations", headerName: "Activations", type: "number", width: 100, sortable: false },
   { field: "spots", headerName: "Spots", type: "number", width: 80, sortable: false },
   { field: "topBand", headerName: "Top band", width: 90, sortable: false },
 ];
@@ -36,6 +37,7 @@ const REFERENCE_COLUMNS: GridColDef[] = [
   { field: "reference", headerName: "Reference", width: 120, sortable: false },
   { field: "name", headerName: "Name", flex: 1, minWidth: 140, sortable: false },
   { field: "program", headerName: "Program", width: 90, sortable: false },
+  { field: "activations", headerName: "Activations", type: "number", width: 100, sortable: false },
   { field: "spots", headerName: "Spots", type: "number", width: 80, sortable: false },
 ];
 
@@ -104,21 +106,38 @@ function Dashboard({ payload }: { payload: StatsPayload }) {
 
   return (
     <>
+      {/* Spots, activations and chasers are three different counts of the same week: a spot is one
+          report, an activation is one callsign at one reference on one UTC day, and a chaser is one
+          spotter who is not the activator. The first row keeps them side by side on purpose. */}
       <Grid container spacing={2}>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Kpi
             label="Spots"
             value={fmt(payload.totals.spots)}
             detail={`${fmt(payload.totals.potaSpots)} POTA, ${fmt(payload.totals.sotaSpots)} SOTA`}
           />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <Kpi
+            label="Activations"
+            value={fmt(payload.totals.activations)}
+            detail={`${fmt(payload.totals.potaActivations)} POTA, ${fmt(payload.totals.sotaActivations)} SOTA`}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <Kpi
+            label="Chasers"
+            value={fmt(payload.totals.chasers)}
+            detail={`${fmt(payload.totals.potaChasers)} POTA, ${fmt(payload.totals.sotaChasers)} SOTA`}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Kpi label="Activators" value={fmt(payload.totals.activators)} detail="Unique callsigns spotted" />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Kpi label="Parks and summits" value={fmt(payload.totals.references)} detail="Unique references activated" />
         </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <Kpi
             label="Peak hour"
             value={hourLabel(payload.peakHour)}
@@ -223,6 +242,7 @@ function Dashboard({ payload }: { payload: StatsPayload }) {
               {...GRID}
               rows={payload.topActivators.map((r, id) => ({ id, ...r, topBand: r.topBand ?? "" }))}
               columns={ACTIVATOR_COLUMNS}
+              columnVisibilityModel={{ topBand: !mobile }}
             />
           </ChartCard>
         </Grid>
