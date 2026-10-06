@@ -267,7 +267,8 @@ adjustable, so the whole page is one precomputed JSON document.
 ## Why a snapshot table
 
 The payload is a dozen aggregates over a week of spots (totals, per-day and per-band counts, a
-per-state choropleth, mode shares, top activators and references). Computing it on every page view
+per-state choropleth, mode shares, top activators and references, plus activation and chaser
+counts beside every spot count). Computing it on every page view
 would scan `raw_spots`, which clients cannot read anyway. Instead `refresh_stats_snapshot()`, a
 security-definer plpgsql function, builds the payload in one `insert … with … select` and runs
 from pg_cron at five past every hour. The web app selects the newest row by `generated_at`, caches
@@ -277,7 +278,14 @@ refresh prunes older ones.
 ## Counting rules
 
 - Every `raw_spots` row is one spot. A station spotted by both sources counts twice; callsigns are
-  counted exactly as stored (`/P` and the like are kept).
+  counted exactly as stored (`/P` and the like are kept). A spot is one report, not a contact: a
+  busy activation is re-spotted many times, so spot counts run far ahead of operating activity.
+- An activation is one distinct (callsign, reference, UTC day), per program. Only spotted
+  activations are visible and no QSO count is known, so this is a floor on the programs' own
+  numbers. The totals and both top-8 tables carry it next to the spot count.
+- A chaser is a distinct spotter callsign, excluding null spotters and self-spots. A self-spot is
+  one whose spotter equals any `/`-separated part of the activator callsign (`SQ1GPR` spotting
+  `SQ1GPR/P`, `G4OBK` spotting `W4/G4OBK`). RBN skimmers are stored as plain callsigns and count.
 - POTA state counts come from `pota_location`, a comma-separated list such as `US-NC,US-VA`; a park
   spanning two states counts once in each. Non-US entries and territories are ignored and all 51
   codes (50 states and DC) are always present, zero-filled.
