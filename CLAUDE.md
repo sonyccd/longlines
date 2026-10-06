@@ -30,6 +30,8 @@ docker exec -i supabase_db_longlines psql -U postgres   # psql is not installed;
 psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/smoke-test.sql   # schema smoke test, also run by CI
 supabase test db                       # pgTAP suites in supabase/tests/*.test.sql (local db must be running)
 
+cd web && npm run dev:full             # stack + web/.env.local + Vite + functions serve (README lists all npm shortcuts)
+cd web && npm run test:all             # every CI check against the local stack, with a summary; :fresh resets the db first
 cd web && npm run dev                  # web app on http://localhost:5173 (needs web/.env.local)
 cd web && npm test                     # Vitest for web/src/lib
 cd web && npm run build                # tsc -b + vite build; zero TS errors required
@@ -121,6 +123,9 @@ Migrations already applied to the hosted project must not be edited; add a new m
 - Env: `web/vite.config.ts` maps `SUPABASE_URL`/`SUPABASE_ANON_KEY` (what the Supabase Vercel
   integration provides) onto `import.meta.env.VITE_*` with an explicit allowlist. Never widen
   `envPrefix` or add the service-role key to that mapping.
+- `web/scripts/*.ts` are local-dev helpers behind the npm scripts, run by Node's built-in type
+  stripping (erasable syntax only, `.ts` import extensions). They only talk to the local stack;
+  `local-stack.ts` refuses a non-local API URL. Never add a script that deploys or pushes.
 - The guided tour lives in `web/src/tour/`. Steps and copy are in `model.ts` (the mock has no
   tour section); `TourProvider.tsx` is the only module that imports react-joyride. Pages only add
   `data-tour` attributes and call `useTour().report(...)`; never drive Joyride from a page.
