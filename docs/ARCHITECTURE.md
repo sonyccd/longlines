@@ -125,8 +125,8 @@ flowchart LR
   AUTH -- insert trigger --> P
   WEB -- RPC create_destination --> D
   WEB -- RPC save_subscription --> S --> SD --> D
-  WEB -- select --> RS
-  WEB -- select --> H
+  WEB -- RPC list_recent_spots --> RS
+  WEB -- RPC list_ingest_health --> H
 ```
 
 ## Accounts
@@ -184,9 +184,12 @@ not block the cascade.
 
 ## What clients can read
 
-- `recent_spots`: the last 24 hours of `raw_spots` without `raw_payload`
-  (definer view; the table itself stays unreadable).
-- `ingest_health`: made a definer view so the Sources page can show it.
+- `recent_spots`: the last 24 hours of `raw_spots` without `raw_payload`, read through the
+  `list_recent_spots(max_rows)` RPC (the table itself stays unreadable).
+- `ingest_health`: read through the `list_ingest_health()` RPC so the Sources page can show it.
+- Both views are invoker views that clients cannot select directly; the security definer RPCs
+  are the client path. Supabase's security linter flags definer views in an exposed schema, so
+  don't turn either back into one.
 - Their own `profiles`, `destinations` (safe columns), `subscriptions` and
   links, through RLS.
 - `stats_snapshots`: hourly jsonb summaries of the last 7 complete UTC days, written only by

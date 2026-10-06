@@ -136,13 +136,13 @@ export async function updateProfile(
 // ---- Sources ---------------------------------------------------------------
 
 export async function loadIngestHealth(): Promise<IngestHealth[]> {
-  const { data, error } = await supabase.from("ingest_health").select("*");
+  const { data, error } = await supabase.rpc("list_ingest_health");
   if (error) fail(error, "Couldn't load source health.");
   return data;
 }
 
 export async function loadRecentSpots(limit = 200): Promise<RecentSpot[]> {
-  const { data, error } = await supabase.from("recent_spots").select("*").order("spot_time", { ascending: false }).limit(limit);
+  const { data, error } = await supabase.rpc("list_recent_spots", { max_rows: limit });
   if (error) fail(error, "Couldn't load recent spots.");
   return data;
 }
