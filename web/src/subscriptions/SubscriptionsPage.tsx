@@ -13,6 +13,7 @@ import {
 } from "../lib/api";
 import type { TimePrefs } from "../lib/time";
 import { errorText, useNotify } from "../app/hooks";
+import { useTour } from "../tour/hooks";
 import { SubscriptionDialog } from "./SubscriptionDialog";
 import { blankSub, filterChips, PREVIEW_WINDOW, toInput } from "./model";
 
@@ -28,6 +29,7 @@ interface Props {
 export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScreen }: Props) {
   const notify = useNotify();
   const navigate = useNavigate();
+  const tour = useTour();
   const [editing, setEditing] = useState<SubscriptionInput | null>(null);
   const [busy, setBusy] = useState(false);
   const [hits, setHits] = useState<Record<string, number>>({});
@@ -45,6 +47,11 @@ export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScr
     };
   }, [subs]);
 
+  const startNew = () => {
+    setEditing(blankSub());
+    tour.report("subscription-dialog-opened");
+  };
+
   const save = async (s: SubscriptionInput) => {
     setBusy(true);
     try {
@@ -52,6 +59,7 @@ export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScr
       await reload();
       notify(s.id ? "Saved changes" : `Created ${s.name}`);
       setEditing(null);
+      if (!s.id) tour.report("subscription-created");
     } catch (err) {
       notify(errorText(err, "Couldn't save the subscription."));
     } finally {
@@ -85,7 +93,7 @@ export function SubscriptionsPage({ subs, dests, loading, reload, prefs, fullScr
           <PageTitle>Subscriptions</PageTitle>
           <Typography color="text.secondary">A subscription picks which spots you care about and sends them to one or more destinations.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing(blankSub())} sx={{ flexShrink: 0 }}>New subscription</Button>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={startNew} data-tour="new-subscription" sx={{ flexShrink: 0 }}>New subscription</Button>
       </Stack>
       {loading && <LinearProgress />}
       {!loading && dests.length === 0 && (

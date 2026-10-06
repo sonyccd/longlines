@@ -57,7 +57,7 @@ export function SubscriptionDialog({ open, initial, dests, prefs, busy, onClose,
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
       <DialogTitle>{initial.id ? "Edit subscription" : "New subscription"}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers data-tour="subscription-form">
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack spacing={2.5}>
