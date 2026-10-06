@@ -2,9 +2,9 @@
 --
 -- A raw_spots row is one spotting event, and a busy activation is re-spotted
 -- dozens of times, so the spot counts alone overstate how much operating
--- happened. This replaces refresh_stats_snapshot() (the 20261006000015 version
--- is applied to the hosted project and is not edited) to add, keeping every
--- existing field unchanged:
+-- happened. This replaces refresh_stats_snapshot() as defined in 20261006000018
+-- (applied migrations are not edited; this file was 20261006000016 until
+-- 0017 and 0018 landed first) to add, keeping every existing field unchanged:
 --
 --   totals.activations / potaActivations / sotaActivations
 --     An activation is one distinct (callsign, reference, UTC day), the unit
@@ -50,7 +50,7 @@ begin
   with
   -- Every in-window row with its UTC day and hour.
   spots as (
-    select r.id, r.source, r.spot_time, r.callsign, r.spotter, r.band, r.mode,
+    select r.id, r.source, r.spot_time, r.callsign, r.spotter, r.band, r.mode, r.mode_family,
            r.pota_reference, r.pota_park_name, r.pota_location, r.sota_summit_ref,
            to_char(r.spot_time at time zone 'utc', 'YYYY-MM-DD') as day,
            extract(hour from r.spot_time at time zone 'utc')::int as hour,
@@ -175,6 +175,11 @@ begin
     left join band_counts c using (band)
   ),
   -- modes: five fixed labels, integer percents that sum to exactly 100.
+  -- The labels are chart buckets, not mode families. CW follows mode_family
+  -- so every spelling _shared/modes.ts treats as CW counts; SSB, FT8/FT4 and
+  -- FM are exact mode strings on purpose, since the phone family also holds
+  -- AM and digital voice and the digital family holds RTTY, PSK and so on,
+  -- all of which belong in Other.
   -- Each share is rounded (round() is half away from zero), then whatever is
   -- left over after rounding (100 - sum, possibly negative) is added to the
   -- bucket with the most spots. With no spots every percent is 0.
@@ -183,7 +188,7 @@ begin
   ),
   mode_counts as (
     select case
-             when mode = 'cw'                    then 'CW'
+             when mode_family = 'cw'             then 'CW'
              when mode in ('ssb', 'usb', 'lsb')  then 'SSB'
              when mode in ('ft8', 'ft4')         then 'FT8/FT4'
              when mode = 'fm'                    then 'FM'
@@ -233,6 +238,7 @@ begin
            row_number() over (partition by callsign order by count(*) desc, band asc) as rn
     from spots
     where band is not null
+      and callsign in (select callsign from activators)
     group by callsign, band
   ),
   top_activators as (
@@ -247,18 +253,16 @@ begin
     from activators a
     left join activator_bands ab on ab.callsign = a.callsign and ab.rn = 1
   ),
-  -- topReferences: top 8 across both programs by spots. A POTA name is the
-  -- most recent non-null pota_park_name by spot_time; SOTA has no name.
+  -- topReferences: top 8 across both programs by spots.
   -- activations is per (callsign, UTC day) within the reference.
   reference_counts as (
     select pota_reference as reference, 'POTA' as program, count(*) as n,
-           count(distinct (callsign, day)) as activations,
-           (array_agg(pota_park_name order by spot_time desc) filter (where pota_park_name is not null))[1] as name
+           count(distinct (callsign, day)) as activations
     from spots
     where pota_reference is not null
     group by pota_reference
     union all
-    select sota_summit_ref, 'SOTA', count(*), count(distinct (callsign, day)), null::text
+    select sota_summit_ref, 'SOTA', count(*), count(distinct (callsign, day))
     from spots
     where sota_summit_ref is not null
     group by sota_summit_ref
@@ -267,6 +271,19 @@ begin
     select * from reference_counts
     order by n desc, reference asc
     limit 8
+  ),
+  -- The name is looked up only for the eight kept rows: a POTA name is the
+  -- most recent non-null pota_park_name by spot_time; SOTA has no name.
+  top_reference_names as (
+    select r.reference, r.program, r.n, r.activations,
+           case when r.program = 'POTA' then (
+             select s.pota_park_name
+             from spots s
+             where s.pota_reference = r.reference and s.pota_park_name is not null
+             order by s.spot_time desc
+             limit 1
+           ) end as name
+    from top_reference_rows r
   ),
   top_references as (
     select coalesce(
@@ -277,7 +294,7 @@ begin
              ),
              '[]'::jsonb
            ) as v
-    from top_reference_rows
+    from top_reference_names
   )
   -- Every CTE above is a single-row aggregate, so the cross joins yield one row.
   select

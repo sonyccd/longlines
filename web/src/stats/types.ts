@@ -1,5 +1,5 @@
 // Shape of stats_snapshots.payload. It is produced by refresh_stats_snapshot()
-// in supabase/migrations/20261006000016_stats_activations.sql and pinned by
+// in supabase/migrations/20261006000019_stats_activations.sql and pinned by
 // supabase/tests/stats_snapshot.test.sql; change both together.
 
 export type ModeLabel = "CW" | "SSB" | "FT8/FT4" | "FM" | "Other";
