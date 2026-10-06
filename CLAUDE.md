@@ -90,7 +90,8 @@ Migrations already applied to the hosted project must not be edited; add a new m
   `select` only. It is the one table `anon` may read: the Stats page (`/stats`) is public and
   renders in `PublicShell` when signed out, `AppShell` when signed in. The payload shape is `StatsPayload` in `web/src/stats/types.ts` and is pinned by
   `supabase/tests/stats_snapshot.test.sql`; change the SQL, the type and the test together.
-- The Stats page is deliberately fixed: no controls beyond tooltips, one request per page load.
+- The Stats page is deliberately fixed: no controls beyond tooltips, one request per hour of use
+  (`web/src/stats/cache.ts` keeps a snapshot until the next refresh is due; never poll).
   Do not add filters, date pickers, sorting or MUI X Pro components.
 
 ## Delivery rules
