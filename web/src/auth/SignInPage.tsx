@@ -80,7 +80,7 @@ export function SignInPage() {
       try {
         localStorage.setItem(WELCOME_KEY, callsign);
       } catch {
-        // storage unavailable; the welcome toast is a nicety
+        // storage unavailable; the new account just won't start the tour by itself
       }
       void navigate("/check-email", { state: { email: su.email.trim() } });
     } catch (err) {
