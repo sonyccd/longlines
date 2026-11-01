@@ -2,8 +2,8 @@
 
 Date: 2026-10-31
 
-Status: Piece 1 (LISTEN), Piece 2 (permanent-failure pause) and Piece 3 (queue backlog and Clear
-queue) built, in review. Each PR appends to the Progress log.
+Status: shipped. Piece 1 (LISTEN, #341), Piece 2 (permanent-failure pause, #342) and Piece 3
+(queue backlog and Clear queue, #343) merged and deployed 2026-11-01. Every decision is closed.
 
 This spec supersedes section 9 ("Phase 2 outline") of `2026-10-15-outbound-sender-design.md`.
 Read that spec for how the sender, the claim and the outcome RPCs work today; this one only adds
@@ -101,10 +101,9 @@ Brad confirmed this scope on 2026-10-31.
   must not pause the destination at its new URL. When none of the rows was claimed at the current
   `url_generation`, the call only makes those rows visible again.
 - **[DECIDED]** Send test never pauses. `handlers/test_delivery.ts` never reads `gone`.
-- **[OPEN]** A webhook pauses on 410 whatever its "Pause this destination after repeated failures"
-  switch says. Recommended, because 410 is the receiver saying the URL is gone for good, and the
-  switch's sentence is about repeated failures. Brad's product call; the alternative is to pause on
-  410 only while the switch is on.
+- **[DECIDED]** A webhook pauses on 410 whatever its "Pause this destination after repeated
+  failures" switch says, because 410 is the receiver saying the URL is gone for good, and the
+  switch's sentence is about repeated failures (Brad, 2026-11-01).
 - **[DECIDED]** The Discord editor gets the webhook editor's rule: it sends Enabled only when the
   switch changed from what it loaded, null otherwise, so saving a paused destination for another
   reason never resumes it silently. Today `discordModel.ts` sends `enabled` on every save.
@@ -138,8 +137,8 @@ Brad confirmed this scope on 2026-10-31.
   would be additive. The API gains only `POST /v1/destinations/{id}/clear`.
 - **[DECIDED]** The operator's view is `destination_queue_status`, `service_role` only. The sender
   role gets nothing new in Piece 3.
-- **[OPEN]** The paused-alert wording for the two gone pauses and the backed-up banner, dialog and
-  toast copy. Drafts are in the Copy section, each marked "draft, Brad's call".
+- **[DECIDED]** The paused-alert wording for the two gone pauses and the backed-up banner, dialog
+  and toast copy are the Copy section's lines (Brad approved them 2026-11-01).
 
 ### Cross-cutting
 
@@ -406,39 +405,38 @@ RPCs: resuming is already `update_destination(..., true)` or a save with Enabled
 
 ## Copy
 
-Every line here is a **draft, Brad's call** ([OPEN]) until a Progress log entry records his
-answer. `{…}` marks a value; ages read as "14 minutes ago", as elsewhere in the app. Anything not
+Brad approved every line here on 2026-11-01; keep them word for word. `{…}` marks a value; ages read as "14 minutes ago", as elsewhere in the app. Anything not
 listed keeps its current copy.
 
 **Paused alert, editors (Piece 2)**
-- Discord, gone pause *(draft, Brad's call)*: Paused {ago}: Discord says this webhook no longer
+- Discord, gone pause: Paused {ago}: Discord says this webhook no longer
   exists. Create a new webhook in Discord, select Replace URL, paste it, turn Enabled on and save.
-- Webhook, 410 pause *(draft, Brad's call)*: Paused {ago}: the receiver answered HTTP 410 (gone).
+- Webhook, 410 pause: Paused {ago}: the receiver answered HTTP 410 (gone).
   Check the URL, then turn Enabled on and save to resume.
 - Webhook, count pause: unchanged, "Paused {ago} after repeated failed requests. Spots waiting to
   be sent were dropped. Turn Enabled on and save to resume."
 
 **Backed-up banner, Destinations page (Piece 3)**
-- Title *(draft, Brad's call)*: {name} is backed up
-- Body *(draft, Brad's call)*: {N} spots are waiting to be sent, the oldest for {age}. Narrow the
+- Title: {name} is backed up
+- Body: {N} spots are waiting to be sent, the oldest for {age}. Narrow the
   connections that send to it, or clear the queue.
-- Body for one spot *(draft, Brad's call)*: 1 spot has been waiting to be sent for {age}. Narrow
+- Body for one spot: 1 spot has been waiting to be sent for {age}. Narrow
   the connections that send to it, or clear the queue.
 - {age} reads "14 minutes", "1 hour", "40 seconds" (the largest whole unit, no "ago").
-- Button *(draft, Brad's call)*: Clear queue
+- Button: Clear queue
 
 **Card meta (Piece 3)**
-- *(draft, Brad's call)* `· {N} waiting` after the existing meta, only when {N} is above 0.
+- `· {N} waiting` after the existing meta, only when {N} is above 0.
 
 **Clear queue dialog (Piece 3)**
-- Title *(draft, Brad's call)*: Clear the queue for {name}?
-- Body *(draft, Brad's call)*: {N} spots waiting to be sent will be dropped. Spots already being
+- Title: Clear the queue for {name}?
+- Body: {N} spots waiting to be sent will be dropped. Spots already being
   sent, or waiting to be retried, are not affected. New spots keep coming. One spot reads "1 spot
   waiting to be sent will be dropped."
-- Buttons *(draft, Brad's call)*: Cancel · Clear queue
+- Buttons: Cancel · Clear queue
 
 **Toasts (Piece 3)**
-- *(draft, Brad's call)* Cleared {n} spots from {name} ("Cleared 1 spot from {name}") | Nothing
+- Cleared {n} spots from {name} ("Cleared 1 spot from {name}") | Nothing
   to clear
 
 ## Verification
@@ -491,8 +489,7 @@ runs `supabase db push`, `supabase functions deploy`, `fly deploy` or `fly secre
   toast for the queues load until then); `supabase functions deploy api` for the new route.
   Verify with `select * from destination_queue_status limit 5` and one
   `POST /v1/destinations/{id}/clear` with a write token.
-- Every piece: answer the [OPEN] items (the 410 call and the copy drafts) on the PR; the PR that
-  lands an answer records it in the Progress log.
+- The [OPEN] items (the 410 call and the copy) were answered 2026-11-01; see the Progress log.
 
 ## Progress log
 
@@ -622,3 +619,13 @@ next PR. Earlier entries are never edited.
   (one more pgTAP case, `plan(23)`); the OpenAPI description of the clear route no longer says rows
   held back by a rate limit are kept (a throttle moves only the 429'd batch's vt, so the rest are
   cleared), and CLAUDE.md, ARCHITECTURE.md and OPERATIONS.md say the same.
+- 2026-11-01, shipped: #341, #342 and #343 merged and deployed; `20261031000300` and
+  `20261031000400` are on the hosted database, and the hosted check for pending or failed rows
+  without a queue message came back clean before the push. LISTEN works through the Supavisor
+  session pooler: the sender logged `listening for deliveries` two seconds after start and
+  `/healthz` reports `listening: true`. Brad closed the [OPEN] items: a webhook pauses on 410
+  whatever its pause switch says, and the Copy section is approved as written. He accepted the
+  reviewers' remaining notes as they stand: the role's connection limit of 4 against the sender's
+  3, the count-pause wording a 410-paused webhook shows once a new URL clears `last_error`, the nav
+  badge counting a paused destination whose health is `failing`, the unbounded Clear queue
+  statement, and "0 seconds" in the banner.
